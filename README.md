@@ -1,23 +1,18 @@
-# Voximplant UI kit for Vue.js
+# Voximplant voice & video app for Vue.js
 
-Voximplant UI kit for Vue.js is a ready-to-use solution to embed Voximplant audio and video experience into a Vue based application, with full customization capabilities. The kit is ready to run as a standalone application or to leverage as a component inside an existing one.
+Voximplant voice & video app for Vue.js is a ready-to-use solution to embed Voximplant audio and video experience into a Vue based application, with full customization capabilities. The kit is ready to run as a standalone application or to leverage as a component inside an existing one.
 
-## Voximplant’s UI Kit can be used for a range of different use cases, for example:
-
-- To power secure telehealth platforms
-- To add softphones to CRM systems 
-- To create a call center agent workspace
-- To build an online education platform
+You can use the kit as a softphone, a call-center operator workspace, a dialer in a CRM system and much more!
 
 ## Contents
 
-- [UI kit features](#ui-kit-features)
-- [Why should I choose this UI kit](#why-should-i-choose-this-ui-kit)
+- [Voice & video app features](#voice--video-app-features)
+- [Why should I choose this voice & video app](#why-should-i-choose-this-voice--video-app)
 - [How to build](#how-to-build)
 - [How to setup backend](#how-to-setup-backend)
 - [Business logic description](#business-logic-description)
 
-## UI kit features
+## Voice & video app features
 
 The kit provides the following features:
 
@@ -34,9 +29,9 @@ The kit provides the following features:
 - Screen sharing
 - Several video layouts
 
-## Why should I choose this UI kit
+## Why should I choose this voice & video app
 
-Voximplant UI kit for Vue.js is a great choice for your business, because: 
+Voximplant voice & video app for Vue.js is a great choice for your business, because: 
 
 - The Vue.js framework makes it easy to build
 - Effector.js enables you to leverage any other framework
@@ -45,7 +40,7 @@ Voximplant UI kit for Vue.js is a great choice for your business, because:
 - All business logic implemented at application store
 - Cross-domain iframe API enables reach configuration options and flexibility
 
-Benefits of the UI kit for Vue.js:
+Benefits of the voice & video app for Vue.js:
 
 - Rapid deployment — Leverage the call UI components to deploy quickly and easily 
 - Optimize development time — Save time going through documentation as all components have embedded SDK functions and a recommended server scenario
@@ -55,7 +50,7 @@ Benefits of the UI kit for Vue.js:
 ## How to build
 
 1. Make sure that [Node.js](https://nodejs.org) is installed on your computer.
-    > Voximplant UI kit for Vue.js uses [Vue 3](https://vuejs.org/guide/introduction.html) for UI and [Effector](https://effector.dev/docs/glossary/) for business logic, but they will install automatically as dependencies.
+    > XXX uses [Vue 3](https://vuejs.org/guide/introduction.html) for UI and [Effector](https://effector.dev/docs/glossary/) for business logic, but they will install automatically as dependencies.
 1. Download the repository.
 1. Navigate to the project folder and execute `yarn install` to install the dependencies and set up the project.
 1. To compile and run the project, execute `yarn serve`.
