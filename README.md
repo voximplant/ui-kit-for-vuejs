@@ -70,7 +70,39 @@ For example, you can use this simple scenario, to process inbound and outbound c
 VoxEngine.forwardCallToUser(null,true);
 ```
 
-After you create it, you can run your application and log into it with an existing Voximplant user.
+This one-line scenario is enough if you are going to call Voximplant users only. If you want to process phone calls, user calls and SIP calls in the same scenario, use the following scenario:
+
+```js
+VoxEngine.addEventListener(AppEvents.CallAlerting, (e) => {
+    // divide SIP calls from Voximplant calls
+    if (e.toURI.endsWith("voximplant.com")) {
+        // divide phone calls from user calls
+        if (e.destination.match (/^[0-9]+$/)) {
+            // this is a phone call
+            const newCall = VoxEngine.callPSTN(e.destination, callerID); // you must have a confirmed caller id
+            VoxEngine.easyProcess(e.call, newCall, () => {});
+        } else {
+            // this is a user call
+            const newCall = VoxEngine.callUser({
+                username: e.destination,
+                callerid: e.callerid,
+                displayName: e.displayName,
+                video: false, // set true to allow video calls
+                scheme: e.scheme
+            });
+            VoxEngine.easyProcess(e.call, newCall, () => {});
+        }
+    } else {
+        // this is a SIP call
+        const newCall = VoxEngine.callSIP(e.toURI);
+        VoxEngine.easyProcess(e.call, newCall, () => {});
+    }
+});
+```
+
+Read more about processing the calls in scenarios in [our documentation](https://voximplant.com/docs/guides/calls/scenario). You can find the information on how to make peer-to-peer user calls, how to confirm a caller ID and how to secure your SIP-calls.
+
+After you create the scenario, you can run your application and log into it with an existing Voximplant user.
 
 ### Customization
 
