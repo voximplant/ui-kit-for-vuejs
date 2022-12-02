@@ -102,6 +102,8 @@ VoxEngine.addEventListener(AppEvents.CallAlerting, (e) => {
 
 Read more about processing the calls in scenarios in [our documentation](https://voximplant.com/docs/guides/calls/scenario). You can find the information on how to make peer-to-peer user calls, how to confirm a caller ID and how to secure your SIP-calls.
 
+If you are going to use this application as a contact center operator workspace, use the scenario from the [contact center documentation](https://voximplant.com/docs/guides/smartqueue/howto#set-up-a-voxengine-scenario).
+
 After you create the scenario, you can run your application and log into it with an existing Voximplant user.
 
 ### Customization
