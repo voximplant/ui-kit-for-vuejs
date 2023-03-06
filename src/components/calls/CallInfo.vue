@@ -1,7 +1,7 @@
 <i18n>
 {
   "en": {
-    "incomingCall": "Incoming call...",
+    "incomingCall": "Incoming call",
     "statuses": {
       "pause": "Paused"
     },
@@ -17,7 +17,7 @@
     }
   },
   "ru": {
-    "incomingCall": "Входящий звонок...",
+    "incomingCall": "Входящий звонок",
     "statuses": {
       "pause": "Пауза"
     },
@@ -36,9 +36,9 @@
 </i18n>
 
 <template lang="pug">
-.call-info
+.call-info(v-if="callData" :class="{'expand-call-info-restrictions': settings.maximize}")
   .avatar-wrap
-    Icon(color="--sui-gray-400" name="ic24-user")
+    Icon(color="--sui-gray-400" width="32px" name="ic24-user")
   .calls-wrap
     Typography.number.text(:fontColor="userColor ? '--sui-white' : '--sui-gray-900'") {{ callData?.number }}
     .status-wrap
@@ -46,12 +46,12 @@
         v-if="callData?.status === 'CONNECTED' && !callData.active && !incomingCall"
         fontColor="--sui-purple-500"
         ) {{ `${t('statuses.pause')}&nbsp; · &nbsp;` }}
-      Typography.status.text.error(v-if="callData?.status !== 'CONNECTED' && callData?.status !== 'PROGRESSING' && !incomingCall") {{ t(`errors.${callData?.status}`) }}
+      Typography.status.text.error(v-if="callData?.status !== 'CONNECTED' && callData?.status !== 'PROGRESSING' && !incomingCall") {{ errorText }}
       Typography.call-time.text(
         v-if="currentCallDuration && !incomingCall && callData?.status === 'CONNECTED'"
         fontColor="--sui-purple-500"
         ) {{ callData.active ? timeFormat(currentCallDuration.callDuration) : timeFormat(currentCallDuration.pauseDuration) }}
-      Typography.call-time.text(
+      Typography.call-time.text.animation(
         v-if="incomingCall"
         fontColor="--sui-gray-500"
         ) {{ t('incomingCall') }}
@@ -60,7 +60,7 @@
 <script lang="ts">
   import { computed, defineComponent, PropType } from 'vue';
   import { Button, Icon, Typography } from '@voximplant/spaceui';
-  import { $callDuration } from '@/store/calls';
+  import { $callDuration, activeCalls, CALL_STATUSES } from '@/store/calls';
   import { useStore } from 'effector-vue/composition';
   import { ActiveCall } from '@/types';
   import { timeFormat } from '@/lib/Helpers';
@@ -79,10 +79,15 @@
         type: Boolean,
         default: false,
       },
+      activeCall: {
+        type: Boolean,
+        default: false,
+      },
     },
     setup(props) {
       const duration = useStore($callDuration);
       const settings = useStore($settings);
+      const calls = useStore(activeCalls);
       const { t } = useI18n();
 
       const currentCallDuration = computed(() => {
@@ -91,18 +96,40 @@
         return duration.value[id as string] || {};
       });
       const userColor = computed(() => props.incomingCall || settings.value.fullscreen);
+      const errorText = computed(() =>
+        CALL_STATUSES.includes(props.callData.status)
+          ? t(`errors.${props.callData.status}`)
+          : props.callData?.status
+      );
+      const callInfoWidth = computed(() => {
+        if (!props.activeCall) return 'inherit';
+        else if (calls.value.length - 1) return '57%';
+        else return '85%';
+      });
 
-      return { t, currentCallDuration, timeFormat, userColor };
+      return {
+        t,
+        currentCallDuration,
+        timeFormat,
+        userColor,
+        errorText,
+        callInfoWidth,
+        settings,
+      };
     },
   });
 </script>
 
 <style scoped>
+  .expand-call-info-restrictions {
+    max-width: 155px;
+  }
   .call-info {
     align-items: center;
     display: flex;
-    margin-right: 8px;
     cursor: pointer;
+    gap: 8px;
+    width: v-bind('callInfoWidth');
     & .avatar-wrap {
       align-items: center;
       background-color: var(--sui-gray-100);
@@ -110,7 +137,6 @@
       display: flex;
       height: 32px;
       justify-content: center;
-      margin-right: 8px;
       width: 32px;
     }
     & .avatar {
@@ -121,7 +147,7 @@
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      max-width: 150px;
+      max-width: 85%;
     }
     & .number {
       overflow: hidden;
@@ -143,6 +169,26 @@
     & .status-wrap {
       display: flex;
       width: auto;
+    }
+  }
+  .animation:after {
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: bottom;
+    -webkit-animation: ellipsis steps(4, end) 1500ms infinite;
+    animation: ellipsis steps(4, end) 1500ms infinite;
+    content: '\2026'; /* ascii code for the ellipsis character */
+    width: 0px;
+  }
+  @keyframes ellipsis {
+    to {
+      width: 12px;
+    }
+  }
+
+  @-webkit-keyframes ellipsis {
+    to {
+      width: 12px;
     }
   }
 </style>

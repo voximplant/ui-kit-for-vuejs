@@ -35,13 +35,13 @@
         mode="alert"
         iconOnly
         :icon="{name: 'ic20-close', color: '--sui-white'}"
-        @click="hangUp({ id: incomingCall[0].id, incoming: true })"
+        @click="hangUp({ id: incomingCall[0].id })"
       )
-    Hint.hint-button(v-if="isVideoCall" :text="t('hints.answerVideo')")
+    Hint.hint-button(v-if="!appConfig.AUDIO_ONLY" :text="t('hints.answerVideo')")
       Button.button.take-call(
         mode="primary"
         iconOnly
-        :icon="{ spriteUrl: '/static/icons-pack.svg', name: 'ic24-videocamera' }"
+        :icon="{ spriteUrl: 'static/icons-pack.svg', name: 'ic24-videocamera' }"
         @click="answerCall(true)"
       )
     Hint.hint-button(:text="t('hints.answer')")
@@ -66,10 +66,12 @@
     incomingCalls,
     answerIncomingCall,
     hangUp,
-    $calls,
     toggleLocalVideo,
+    setCurrentCallAsPaused,
+    $currentActiveCallId,
   } from '@/store/calls';
   import { changeVideoParam } from '@/lib/sdkSource';
+  import appConfig from '@/config';
 
   export default defineComponent({
     name: 'IncomingCall',
@@ -78,25 +80,29 @@
       const { t } = useI18n();
       const settingsState = useStore($settings);
       const duration = useStore($callDuration);
-      const calls = useStore($calls);
       const incomingCall = useStore(incomingCalls);
+      const currentActiveCallId = useStore($currentActiveCallId);
 
-      let isVideoCall = false;
-      if (incomingCall.value[0]?.id) {
-        isVideoCall = calls.value[incomingCall.value[0]?.id]?.params.video;
-      }
       const buttonWrapClasses = computed(() => ({
-        video: isVideoCall,
-        audio: !isVideoCall,
+        video: !appConfig.AUDIO_ONLY,
+        audio: appConfig.AUDIO_ONLY,
       }));
 
       const answerCall = (isVideo: boolean) => {
+        if (currentActiveCallId.value) {
+          setCurrentCallAsPaused({})
+            .then(() => answer(isVideo))
+            .catch((error) => console.error('setCurrentCallAsPaused error', error));
+        } else {
+          answer(isVideo);
+        }
+      };
+
+      const answer = (isVideo: boolean) => {
         if (incomingCall.value[0]) {
           toggleLocalVideo({ id: incomingCall.value[0].id, status: isVideo });
           changeVideoParam(isVideo);
-          //changeVideoMute(!$settings.getState().videoMute);
         }
-        //changeVideoParam(isVideo);
         answerIncomingCall({ id: incomingCall.value[0].id, isVideo });
       };
 
@@ -108,7 +114,7 @@
         answerIncomingCall,
         duration,
         buttonWrapClasses,
-        isVideoCall,
+        appConfig,
         answerCall,
       };
     },
@@ -128,7 +134,7 @@
     position: absolute;
     top: 16px;
     width: calc(100% - 48px);
-    z-index: 20;
+    z-index: 20; /* z-index 16-20: dropdown call list & incoming call  */
     max-width: 557px;
     & .button-wrap {
       display: grid;

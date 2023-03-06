@@ -119,7 +119,7 @@ input.input-range(
       margin: 0;
       position: relative;
       width: 10px;
-      z-index: 5;
+      z-index: 5; /* z-index 5-10: style elements (focus, hover decor) */
       &:hover,
       &:active {
         border-color: var(--active-color);

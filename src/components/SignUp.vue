@@ -4,13 +4,13 @@
     "formLabel": {
       "name": "Username",
       "password": "Password",
-      "applicationName": "Application",
+      "applicationName": "Application name",
       "placeholderApplication": "Choose",
       "accountName": "Account name",
       "advancedOptions": "Advanced options ",
       "hint": " (optional)",
       "queueType": "Queue type",
-      "tooltip": "Refer to the documentation to learn the difference between SmartQueue and ACDv1.",
+      "tooltip": "Refer to the documentation to learn the difference between SmartQueue and ACDv1",
       "typeList": {
         "SmartQueue": "SmartQueue",
         "ACD": "ACDv1",
@@ -20,11 +20,18 @@
     },
     "checkbox": "Remember me",
     "button": "Sign in",
-    "errorList": {
-      "userName": "Please fill in the field, it is required",
-      "password": "Please fill in the field, it is required",
+    "authErrorList": {
+      "userName": "Username must be at least 3 symbols long",
+      "password": "Password must be at least 6 characters long",
       "applicationName": "Please choose an option, it is required field",
-      "accountName": "Please fill in the field, it is required"
+      "accountName": "Please fill in the field, it is required",
+      "empty": "Please fill in the field, it is required",
+      "404": {
+        "userName": "Incorrect user name",
+        "accountName": "Incorrect account name",
+        "applicationName": "Incorrect application name"
+      },
+      "401": "Incorrect password"
     }
   },
   "ru": {
@@ -47,10 +54,18 @@
     },
     "checkbox": "Запомнить",
     "button": "Войти",
-    "errorList": {
-      "name": "Обязательное поле",
-      "password": "Обязательное поле",
-      "applicationName": "Обязательное поле"
+    "authErrorList": {
+      "userName": "Имя пользователя должно быть не менее 3 символов",
+      "password": "Длина пароля должна быть не менее 6 символов",
+      "applicationName": "Обязательное поле",
+      "accountName": "Обязательное поле",
+      "empty": "Обязательное поле",
+      "404": {
+        "userName": "Неверное имя пользователя",
+        "accountName": "Неверное имя аккаунта",
+        "applicationName": "Неверное имя приложения"
+      },
+      "401": "Неверный пароль"
     }
   }
 }
@@ -64,9 +79,9 @@
       :modelValue="fields.userName"
       :state="errors.userName ? 'error' : 'default'"
       :label="t('formLabel.name')"
-      :caption="errors.userName"
+      :caption="errors.userName && t(`authErrorList.${errors.userName}`)"
       @update:modelValue="(value) => {fillForm({field: 'userName', value: value})}"
-      @blur="(value) => setFieldError('userName', value.length <= 3)"
+      @blur="(value) => setFieldError('userName', value.length < 3, !value.length)"
     )
     Input(
       id="password"
@@ -74,27 +89,37 @@
       :modelValue="fields.password"
       :label="t('formLabel.password')"
       :state="errors.password ? 'error' : 'default'"
-      :caption="errors.password"
+      :caption="errors.password && t(`authErrorList.${errors.password}`)"
       @update:modelValue="(value) => {fillForm({field: 'password', value: value})}"
-      @blur="(value) => setFieldError('password', value.length <= 6)"
+      @blur="(value) => setFieldError('password', value.length <= 6, !value.length)"
+    )
+    Select(
+      v-if="appConfig.IS_PLATFORM_INTEGRATED"
+      id="applications"
+      :label="t('formLabel.applicationName')"
+      :options="applicationList"
+      :state="errors.applicationName ? 'error' : 'default'"
+      :modelValue="fields.applicationName"
+      @update:modelValue="(value) => {fillForm({field: 'applicationName', value: value})}"
     )
     Input(
+      v-else
       id="applications"
       :modelValue="fields.applicationName"
       :label="t('formLabel.applicationName')"
       :state="errors.applicationName ? 'error' : 'default'"
-      :caption="errors.applicationName"
+      :caption="errors.applicationName && t(`authErrorList.${errors.applicationName}`)"
       @update:modelValue="(value) => {fillForm({field: 'applicationName', value: value})}"
-      @blur="(value) => setFieldError('applicationName', value.length <= 2)"
+      @blur="(value) => setFieldError('applicationName', !value.length)"
     )
     Input(
       id="account-name"
       :modelValue="fields.accountName"
       :state="errors.accountName ? 'error' : 'default'"
       :label="t('formLabel.accountName')"
-      :caption="errors.accountName"
+      :caption="errors.accountName && t(`authErrorList.${errors.accountName}`)"
       @update:modelValue="(value) => {fillForm({field: 'accountName', value: value})}"
-      @blur="(value) => setFieldError('accountName', value.length <= 3)"
+      @blur="(value) => setFieldError('accountName', !value.length)"
     )
     Spoiler.optional(
       chevronPosition="right"
@@ -118,8 +143,6 @@
               :items="[{ label: t('formLabel.typeList.SmartQueue'), value: 2 }, { label: t('formLabel.typeList.ACD'), value: 1 }, { label: t('formLabel.typeList.None'), value: 0 }]"
               name="queueType"
               size="m"
-              :key="item"
-              :id="item"
               @update:modelValue="(value) => fillForm({ field: 'queueType', value })"
               :modelValue="fields.queueType"
             )
@@ -138,13 +161,14 @@
     )
     Button(
       width="fill-container"
-      @click="loginFx"
-      :disabled="isActiveSignIn"
+      :loading="isLoadingLoginBtn"
+      :disabled="isLoadingLoginBtn"
+      @click="loginClick()"
     ) {{ t('button') }}
 </template>
 
 <script lang="ts">
-  import { computed, defineComponent, onMounted } from 'vue';
+  import { defineComponent, onMounted, ref } from 'vue';
   import '@/store/signIn/init';
   import {
     Button,
@@ -153,6 +177,7 @@
     Icon,
     Input,
     RadioButtonGroup,
+    Select,
     Spoiler,
     Typography,
   } from '@voximplant/spaceui';
@@ -166,41 +191,62 @@
     setError,
   } from '@/store/signIn/index';
   import { useStore } from 'effector-vue/composition';
-  import { QueueType } from '@/types';
+  import { QueueType, SignInErrors } from '@/types';
+  import appConfig from '@/config';
 
   export default defineComponent({
     name: 'SignUp',
-    components: { RadioButtonGroup, Button, Checkbox, Input, Spoiler, Typography, Icon, Hint },
+    components: {
+      RadioButtonGroup,
+      Button,
+      Checkbox,
+      Input,
+      Spoiler,
+      Typography,
+      Icon,
+      Hint,
+      Select,
+    },
     setup() {
       const { t } = useI18n();
       const fields = useStore($signInFields);
       const errors = useStore($signInErrors);
+      const applicationList = ref([]); // TODO add a list of user applications, when integrating into the platform
+      const isLoadingLoginBtn = ref(false);
+      const toggleLoadingLoginBtn = () => {
+        return (isLoadingLoginBtn.value = !isLoadingLoginBtn.value);
+      };
 
       onMounted(() => {
         restoreFillForm();
       });
 
-      const setFieldError = (field, rule) => {
+      const loginClick = () => {
+        toggleLoadingLoginBtn();
+        loginFx().finally(() => toggleLoadingLoginBtn());
+      };
+      const setFieldError = (field: keyof SignInErrors, rule: boolean, isEmpty: boolean) => {
         if (rule) {
-          setError({ field: field, value: t(`errorList.${field}`) });
+          isEmpty
+            ? setError({ field: field, value: 'empty' })
+            : setError({ field: field, value: field });
         } else {
           setError({ field: field, value: '' });
         }
       };
 
-      const isActiveSignIn = computed(() => {
-        return Object.values(errors.value).find((error) => error !== '');
-      });
-
       return {
         t,
         fillForm,
         QueueType,
+        applicationList,
         fields,
         errors,
         setFieldError,
         loginFx,
-        isActiveSignIn,
+        appConfig,
+        isLoadingLoginBtn,
+        loginClick,
       };
     },
   });

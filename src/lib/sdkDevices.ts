@@ -4,17 +4,9 @@ import { AudioParams } from 'voximplant-websdk/Hardware/src/AudioParams';
 import { Call } from 'voximplant-websdk/Call/Call';
 
 export const requestMicrophonePermission = async (): Promise<boolean> => {
-  try {
-    const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    mediaStream.getTracks().forEach((track) => track.stop());
-    return true;
-  } catch (e) {
-    if (e.message.includes('Permission denied')) {
-      return false;
-    } else {
-      throw e;
-    }
-  }
+  const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  mediaStream.getTracks().forEach((track) => track.stop());
+  return !!mediaStream;
 };
 
 export const getAudioDevices = async (): Promise<AudioSourceInfo[]> => {

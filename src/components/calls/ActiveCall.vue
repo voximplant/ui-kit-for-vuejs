@@ -11,9 +11,9 @@
 
 <template lang="pug">
 .active-call(v-if="!settings.minimize" :class="{'active-call-max': settings.maximize, 'active-call-min': !settings.maximize}")
-  CallInfo(:callData="activeCall" @click="setActiveCall(currentActiveCallId)")
+  CallInfo(:callData="selectCall" :active-call="true" @click="openCallState(selectCall.id)")
   .button-wrap(v-if="!settings.maximize")
-    Typography.calls-text(fontColor="--sui-gray-800") {{ `${t('callInfo')} ${calls.length - 1}` }}
+    Typography.calls-text(v-if="calls.length - 1" fontColor="--sui-gray-800") {{ `${t('callInfo')} ${calls.length - 1}` }}
     Button.button-select(
       mode="secondary"
       ref="select"
@@ -29,7 +29,7 @@
         ul.select-list
           li.list-item(
             v-for="(item, key) in calls"
-            @click="setActiveCall(item.id)"
+            @click="setSelectCall(item.id)"
             :key="key"
           )
             CallInfo(:callData="item")
@@ -44,8 +44,9 @@
   import {
     $currentActiveCallId,
     activeCalls,
-    currentActiveCall,
-    setActiveCall,
+    currentSelectCall,
+    openCallState,
+    setSelectCall,
   } from '@/store/calls/index';
   import { useStore } from 'effector-vue/composition';
   import { $settings } from '@/store/settings';
@@ -59,7 +60,7 @@
       const calls = useStore(activeCalls);
       const isOpen = ref(false);
       const checkClickOutside = generateCheckClickOutside(select);
-      const activeCall = useStore(currentActiveCall);
+      const selectCall = useStore(currentSelectCall);
       const currentActiveCallId = useStore($currentActiveCallId);
       const settings = useStore($settings);
 
@@ -83,7 +84,17 @@
         document.removeEventListener('keydown', closeSelect);
       });
 
-      return { t, isOpen, select, calls, setActiveCall, activeCall, settings, currentActiveCallId };
+      return {
+        t,
+        isOpen,
+        select,
+        calls,
+        setSelectCall,
+        selectCall,
+        settings,
+        currentActiveCallId,
+        openCallState,
+      };
     },
   });
 </script>

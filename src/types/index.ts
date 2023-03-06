@@ -10,7 +10,8 @@ export type Component =
   | 'IncomingCall'
   | 'ActiveCall'
   | 'Dialing'
-  | 'VideoCall';
+  | 'VideoCall'
+  | 'CallEnded';
 
 export type StatusInfo =
   | 'isNotSignIn'
@@ -36,6 +37,7 @@ export interface NumpadData {
 
 export type NumpadType = 'firstCall' | 'toneDial' | 'newCall';
 
+// use custom QueueType instead SDK QueueTypes, for processing 'None' state
 export enum QueueType {
   ACD = sdkTypes.QueueTypes.ACD,
   SmartQueue = sdkTypes.QueueTypes.SmartQueue,
@@ -63,7 +65,7 @@ export interface Settings {
   ringtoneVolume: number;
   callVolume: number;
   audioDevices: AudioSourceInfo[];
-  videoDevices: VideoSourceInfo[];
+  videoDevices?: VideoSourceInfo[];
   audios: HTMLAudioElement[];
   ringtone: HTMLAudioElement;
   mute: boolean;
@@ -71,6 +73,8 @@ export interface Settings {
   sharing?: boolean;
   remoteSharing?: boolean;
   fullscreen: boolean;
+  reconnect: boolean;
+  showPauseNotification: boolean;
 }
 
 export interface SignInFields {
@@ -105,7 +109,7 @@ export interface ActiveCall {
 }
 
 export interface Duration {
-  duration: number;
+  callDuration: number;
   pauseDuration?: number;
 }
 

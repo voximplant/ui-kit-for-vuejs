@@ -1,5 +1,6 @@
 <template lang="pug">
-.web-phone-shell(:class="{'popup': callsStore.length > 0, 'maximize': settings.maximize, 'collapsed': settings.minimize}")
+.web-phone-shell(:class="webPhoneClasses")
+  NotificationBlock
   audio(
     id="ringtone"
     preload="auto"
@@ -17,7 +18,7 @@
 </template>
 
 <script lang="ts">
-  import { defineComponent } from 'vue';
+  import { computed, defineComponent, Ref } from 'vue';
   import { useStore } from 'effector-vue/composition';
   import Info from '@/components/Info.vue';
   import Header from '@/components/header/Header.vue';
@@ -31,10 +32,20 @@
   import { $settings } from '@/store/settings/index';
   import { activeCalls, incomingCalls } from '@/store/calls/index';
   import VideoCall from '@/components/VideoCall.vue';
+  import { useCallComponentName } from '@/hooks/callComponentName';
+  import NotificationBlock from '@/components/NotificationBlock.vue';
+  import { $showNotification } from '@/store/notification';
+  import appConfig from '@/config';
+  import CallEnded from '@/components/CallEnded.vue';
+  interface ContentClasses {
+    height: string;
+    overflowY: string;
+  }
 
   export default defineComponent({
     name: 'WebPhoneShell',
     components: {
+      NotificationBlock,
       VideoCall,
       Settings,
       Call,
@@ -44,18 +55,40 @@
       Header,
       Info,
       SignUp,
+      CallEnded,
     },
     setup() {
       const settings = useStore($settings);
       const currentComponentStore = useStore($currentComponent);
       const incoming = useStore(incomingCalls);
       const callsStore = useStore(activeCalls);
+      const showNotification = useStore($showNotification);
+      const webPhoneClasses = computed(() => ({
+        popup: callsStore.value.length > 0,
+        maximize: settings.value.maximize,
+        collapsed: settings.value.minimize,
+        notification: showNotification.value,
+      }));
+      const contentClasses: Ref<ContentClasses> = computed(() =>
+        appConfig.IS_CUSTOMIZE
+          ? {
+              height: 'fit-content',
+              overflowY: 'auto',
+            }
+          : {
+              height: '624px',
+              overflowY: 'hidden',
+            }
+      );
+      useCallComponentName();
 
       return {
         settings,
         currentComponentStore,
         callsStore,
         incoming,
+        webPhoneClasses,
+        contentClasses,
       };
     },
   });
@@ -67,9 +100,10 @@
     box-shadow: 0 2px 8px rgba(40, 41, 61, 0.04), 0 16px 24px rgba(96, 97, 112, 0.16);
     display: flex;
     flex-direction: column;
-    height: 624px;
+    height: v-bind('contentClasses.height');
+    max-height: v-bind('contentClasses.height');
     overflow: hidden;
-    transition: height 0.5s ease-out;
+    transition: width 0.5s ease-out, height 0.5s ease-out;
     width: 384px;
     & .header-block {
       background-color: var(--sui-purple-500);
@@ -78,23 +112,23 @@
       align-items: center;
       display: flex;
       flex-direction: column;
-      height: 100%;
+      height: inherit;
       justify-content: flex-start;
       overflow-x: hidden;
-      overflow-y: auto;
+      overflow-y: v-bind('contentClasses.overflowY');
       position: relative;
       width: 100%;
     }
   }
   .popup {
-    height: 624px;
-    max-height: calc(100vh - 48px);
+    height: v-bind('contentClasses.height');
+    /* max-height: calc(100vh - 48px); */
   }
   .collapsed {
-    height: 120px;
+    height: 130px;
     transition: height 0.5s ease-out;
     & .content {
-      height: 72px;
+      height: 80px;
     }
   }
   .maximize {
@@ -102,9 +136,22 @@
     box-shadow: 0 2px 8px rgba(40, 41, 61, 0.04), 0 16px 24px rgba(96, 97, 112, 0.16);
     display: flex;
     flex-direction: column;
-    height: auto;
     overflow: hidden;
-    transition: height 0.5s ease-out;
+    transition: width 0.5s ease-out, height 0.5s ease-out;
     width: 100%;
+    height: calc(100vh - 16px); /* 16px it is body padding of default */
+    max-height: 100vh;
+  }
+  .notification {
+    position: relative;
+  }
+  .web-phone-shell.notification::after {
+    content: '';
+    background: var(--sui-gray-900);
+    height: 100%;
+    position: absolute;
+    width: 100%;
+    opacity: 0.5;
+    z-index: 20; /* z-index 20-24 elements above dropdown, popups, draggable but below notifications  */
   }
 </style>

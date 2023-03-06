@@ -1,5 +1,5 @@
 module.exports = {
-  publicPath: process.env.NODE_ENV === 'production' ? '/sdk4/webphone/' : '/',
+  publicPath: process.env.NODE_ENV === 'production' ? './' : '/',
   configureWebpack: {
     module: {
       rules: [

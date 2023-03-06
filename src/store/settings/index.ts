@@ -1,23 +1,24 @@
-import { createEffect, createEvent, createStore, restore } from 'effector';
+import { createEffect, createEvent, createStore } from 'effector';
 import { OperatorACDStatuses } from 'voximplant-websdk';
 import { DropdownOptionProps } from '@voximplant/spaceui';
 import { Settings, SoftphoneParameters } from '@/types';
-import { setAudioParam } from '@/lib/sdkSource';
 import { Devices } from '@/store/settings/init';
+import { setActiveCall } from '@/store/calls';
+import { changeComponentDialingStatus } from '@/store/components';
+import { changeInputState, changeInputValue } from '@/store/softphone';
 
-const getAudios = createEvent();
 const getRingtone = createEvent();
 const setRingtoneParam = createEvent();
 const toggleMinimize = createEvent<boolean>();
 const toggleMaximize = createEvent<boolean>();
 const changeVolume = createEvent<{ callVolume?: number; ringtoneVolume?: number }>();
 const setTitleStatus = createEvent<string>();
-const setQueueStatus = createEvent<OperatorACDStatuses>();
-const changeQueueStatus = createEvent<keyof typeof OperatorACDStatuses>();
+const setQueueStatus = createEvent<OperatorACDStatuses>(); // set the status only in $queueStatus store
+const changeQueueStatus = createEvent<keyof typeof OperatorACDStatuses>(); // change queueStatus in SDK https://voximplant.com/docs/references/websdk/voximplant/client#setoperatoracdstatus
+const toggleBannedStatus = createEvent<boolean>();
 const addActiveAudioDevice = createEvent<DropdownOptionProps>();
 const addActiveVideoDevice = createEvent<DropdownOptionProps>();
 const getDevicesFx = createEffect<null, Devices, void>();
-const changeMuteFx = createEffect(setAudioParam);
 const changeMute = createEvent<boolean>();
 const changeVideoMute = createEvent<boolean>();
 const toggleSharingVideo = createEvent<boolean>();
@@ -27,9 +28,11 @@ const changeSoftphoneParameters = createEvent<{
   micAccessResult?: boolean;
   status?: string;
 }>();
+const toggleReconnect = createEvent<boolean>();
+const toggleShowPauseNotification = createEvent<boolean>();
 
-const $titleStatus = restore(setTitleStatus, '');
 const $queueStatus = createStore<OperatorACDStatuses>(OperatorACDStatuses.Online);
+const $isBannedStatus = createStore(false);
 const $settings = createStore<Settings>({
   minimize: false,
   maximize: false,
@@ -46,29 +49,42 @@ const $settings = createStore<Settings>({
   sharing: false,
   remoteSharing: false,
   fullscreen: false,
+  reconnect: false,
+  showPauseNotification: false,
 });
 const $softphoneParameters = createStore<SoftphoneParameters>({
-  micAccessResult: false,
-  status: '',
+  micAccessResult: false, // user microphone access flag
+  status: '', // user state after login
 });
 
-const changedSettings = $settings.map<number>((store) => {
-  return store.mute ? 0 : store.callVolume;
-});
+const resetCallSettings = (): void => {
+  setActiveCall('');
+  changeComponentDialingStatus('firstCall');
+  // reset call settings
+  changeMute(false);
+  changeVideoMute(false);
+  toggleSharingVideo(false);
+  toggleRemoteSharing(false);
+};
+
+const resetCallDestination = (): void => {
+  // reset call destination input value
+  changeInputValue({ event: 'change', value: '' });
+  changeInputState('default');
+};
 
 export {
   $settings,
-  $titleStatus,
   $queueStatus,
+  $isBannedStatus,
   $softphoneParameters,
   getRingtone,
-  getAudios,
   setRingtoneParam,
   setTitleStatus,
   setQueueStatus,
   changeVolume,
   changeQueueStatus,
-  changedSettings,
+  toggleBannedStatus,
   changeMute,
   changeSoftphoneParameters,
   toggleMinimize,
@@ -76,9 +92,12 @@ export {
   addActiveAudioDevice,
   addActiveVideoDevice,
   getDevicesFx,
-  changeMuteFx,
   changeVideoMute,
   toggleSharingVideo,
   toggleRemoteSharing,
   toggleFullScreen,
+  toggleReconnect,
+  resetCallSettings,
+  toggleShowPauseNotification,
+  resetCallDestination,
 };
