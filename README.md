@@ -124,6 +124,14 @@ J[(store)]
 
 Additionally, the descriptions for data and functions appear at the arrows between blocks.
 
+### Configuration
+
+The Voximplant voice & video app's configuration is stored in the `/src/config.ts` file and contains the following flags:
+
+- `AUDIO_ONLY` — Specifies whether the call should send and receive video, disabling the video components. The default value is **false**.
+- `IS_PLATFORM_INTEGRATED` — Specifies whether the app is integrated into platform, adds the close button to the header. The default value is **false**.
+- `IS_CUSTOMIZE` — Specifies whether to disable the CSS height and width restrictions, adapting the window size to the content. The default value is **false**.
+
 ### Authorization
 
 The SignUp component is responsible for authorization. It consists of the following blocks:
