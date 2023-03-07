@@ -14,7 +14,7 @@
     "postcss-custom-media": "8.0.0",
     "postcss-nested": "4.2.3",
     "postcss-preset-env": "6.7.0",
-    "voximplant-websdk": "4.6.2-2440",
+    "voximplant-websdk": "beta",
     "vue": "3.2.22",
     "vue-draggable-next": "2.1.0",
     "vue-i18n": "9.1.7",
