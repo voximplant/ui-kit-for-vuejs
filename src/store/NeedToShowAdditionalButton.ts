@@ -10,14 +10,17 @@ export const needToShowAdditionalButton = combine(
   $lastCallNumber,
   (settings, component, calls, lastCallNumber) => {
     if (settings.minimize) return false;
+    const callsValues = Object.values(calls);
+    const connectedCalls = callsValues.filter((call) => call?.call.signalingConnected);
+
     switch (component) {
       case 'Call':
-        return Boolean(Object.keys(calls).length > 1);
-        break;
+        return Boolean(connectedCalls.length > 1);
+      case 'VideoCall':
+        return Boolean(connectedCalls.length > 1);
       default:
       case 'Dialing':
         return Boolean(lastCallNumber);
-        break;
     }
   }
 );

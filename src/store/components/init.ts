@@ -4,6 +4,8 @@ $currentComponent.on(changeInfoStatus, (store, status) => {
   let componentName = store;
   switch (status) {
     case 'accessMicrophone':
+      // Refresh button clicked
+      window.location.reload();
       break;
     case 'transferredVideoCall':
       componentName = 'VideoCall';

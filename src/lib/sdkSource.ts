@@ -7,39 +7,57 @@ import { CallSettings, Config } from 'voximplant-websdk/Structures';
 import {
   $calls,
   $currentActiveCallId,
-  currentActiveCall,
+  $currentSelectCallId,
+  activeCalls,
+  CALL_STATUSES,
+  changeCanToggle,
   removeCall,
   setActiveCall,
-  setAllCallAsPaused,
   setCall,
   setCallDuration,
   setFailedStatus,
   setLastCallNumber,
+  setSelectCall,
   toggleRemoteAudio,
+  toggleRemotePausedState,
   toggleRemoteVideo,
 } from '@/store/calls/index';
 import {
   changeComponent,
-  changeComponentDialingStatus,
-  changeComponentInfoStatus,
+  openAccessMicrophoneInfo,
+  setNotSignInComponent,
 } from '@/store/components/index';
 import { requestMicrophonePermission } from '@/lib/sdkDevices';
 import {
   $settings,
   addActiveAudioDevice,
   addActiveVideoDevice,
-  changedSettings,
   changeSoftphoneParameters,
   changeVideoMute,
-  getAudios,
   getDevicesFx,
+  resetCallDestination,
+  resetCallSettings,
   setQueueStatus,
   setRingtoneParam,
+  toggleBannedStatus,
+  toggleReconnect,
   toggleRemoteSharing,
+  toggleSharingVideo,
 } from '@/store/settings/index';
-import { $signInFields, setError } from '@/store/signIn';
-import { useStore } from 'effector-vue/composition';
+import { $isTryRelogin, $signInFields, loginFx, restoreFillForm, setError } from '@/store/signIn';
+import { CALL_COMPONENT_NAME } from '@/hooks/callComponentName';
+import appConfig from '@/config';
+import {
+  $notificationState,
+  $showNotification,
+  NotificationContent,
+  setNotificationState,
+  toggleNotification,
+} from '@/store/notification';
+import { MediaRenderer } from 'voximplant-websdk/Media/MediaRenderer';
 
+let LOGIN_ATTEMPTS_QUANTITY = 10;
+const RELOGIN_ATTEMPT_PERIOD = 60000; // 1 minute
 const sdkClient = VoxImplant.getInstance();
 let interval: number;
 
@@ -48,51 +66,91 @@ export const changeVideoParam = (param: boolean): void => {
   changeVideoMute(!param);
 };
 
-export const createSdkCall = (number: string, video?: boolean): void => {
-  const useVideo = {
-    sendVideo: Boolean(video),
-    receiveVideo: Boolean(video),
-  };
-  const callSettings: CallSettings = {
-    number,
-    video: useVideo,
-  };
-  const call = sdkClient.call(callSettings);
-  const id = call.id();
-  setLastCallNumber(number);
-  setCall({ id, call, params: { video } });
-  setActiveCall(id);
-  if (video) {
-    changeComponent('VideoCall');
-    if (!$settings.getState().videoMute) changeVideoParam(true);
-  } else {
-    changeComponent('Call');
+const handleMessageReceived = (ev: EventHandlers.MessageReceived) => {
+  const currentID = $currentActiveCallId.getState();
+  const text = JSON.parse(ev.text);
+  if (text?.name === 'mute') {
+    toggleRemoteAudio({ id: ev.call.settings.id });
+  } else if (text?.name === 'initState') {
+    // event to set flags on/off media about remote user
+    text.audioMute && toggleRemoteAudio({ id: currentID });
+    text.videoMute && toggleRemoteVideo({ id: currentID, status: false });
+  } else if (text?.name === 'sharing') {
+    // remote user toggle sharing state
+    toggleRemoteSharing(!$settings.getState().remoteSharing);
+  } else if (text?.name === 'setActive') {
+    // remote user change call status
+    if (
+      $currentActiveCallId.getState() === ev.call.settings.id ||
+      !$currentActiveCallId.getState()
+    ) {
+      toggleNotification(!text.isActive);
+      setNotificationState('callPause');
+
+      toggleRemotePausedState({ id: ev.call.settings.id, status: !text.isActive });
+    } else {
+      // if the current user already has an active call, answer that the user is busy
+      changeCanToggle({ id: ev.call.settings.id, status: true });
+      const data = {
+        name: 'userBusy',
+      };
+      sendTextMessage(JSON.stringify(data), ev.call.settings.id);
+    }
+  } else if (text?.name === 'userBusy') {
+    // processing the response that the remote user is busy
+    toggleRemotePausedState({ id: ev.call.settings.id, status: !text.isActive });
+    /*toggleActiveSDK(ev.call.settings.id)
+      .then((res) => {
+        changeCallState(res);
+        changeCanToggle({ id: ev.call.settings.id, status: false });
+      })
+      .catch((err) => console.error('toggleActiveSDK error', err));*/
   }
-  const renderers = new Set<{ render: (el: HTMLElement | null) => void }>();
-  const currentCallId = useStore($currentActiveCallId);
+};
+
+const handleCall = (isIncoming: boolean, call: Call, video?: boolean) => {
+  // renderers - storage for media and then rendering them into a div with the remote video element
+  const renderers = new Set<MediaRenderer>();
+  const id = call.id();
+
   call.on(VoxImplant.CallEvents.EndpointAdded, (event) => {
     event.endpoint.on(
       VoxImplant.EndpointEvents.RemoteMediaAdded,
-      ({ mediaRenderer }: { mediaRenderer: { render: (el: HTMLElement | null) => void } }) => {
+      ({ mediaRenderer }: { mediaRenderer: MediaRenderer }) => {
         const toDiv = document.getElementById('remote-video');
         renderers.add(mediaRenderer);
+        // add a timeout for rendering the element's divs
         setTimeout(() => {
-          renderers.forEach((renderer) => renderer.render(toDiv));
+          renderers.forEach((renderer) => {
+            if (toDiv) renderer.render(toDiv);
+          });
         }, 200);
-        toggleRemoteVideo({ id: currentCallId.value, status: true });
+        setAudioVolume(call, $settings.getState().callVolume);
+        if (mediaRenderer.kind === 'video')
+          toggleRemoteVideo({ id: call.settings.id, status: true });
       }
     );
     event.endpoint.on(
       VoxImplant.EndpointEvents.RemoteMediaRemoved,
-      ({ mediaRenderer }: { mediaRenderer: { render: (el: HTMLElement | null) => void } }) => {
-        toggleRemoteVideo({ id: currentCallId.value, status: false });
+      ({ mediaRenderer }: { mediaRenderer: MediaRenderer }) => {
+        toggleRemoteVideo({ id: call.settings.id, status: false });
         renderers.delete(mediaRenderer);
       }
     );
   });
+
   call.on(VoxImplant.CallEvents.Connected, ({ call }: EventHandlers.CallEvent) => {
     setCall({ id, call, params: { video } });
-    //if (!$settings.getState().videoMute) changeVideoParam(true);
+    if ($currentActiveCallId.getState() !== id && activeCalls.getState().length > 1) {
+      // if the incoming call is not active & the user already has an active call
+      toggleActiveSDK(id).catch((err) => console.error('toggleActiveSDK error', err)); // toggle current active call
+    } else {
+      setActiveCall(id);
+    }
+    if (isIncoming) {
+      setSelectCall(id);
+      $settings.getState().ringtone.pause();
+    }
     if ($settings.getState().mute || $settings.getState().videoMute) {
       const data = {
         name: 'initState',
@@ -101,28 +159,56 @@ export const createSdkCall = (number: string, video?: boolean): void => {
       };
       sendTextMessage(JSON.stringify(data));
     }
+
+    if (isIncoming) {
+      changeComponent(CALL_COMPONENT_NAME);
+      // reset call destination input value
+      resetCallDestination();
+    }
   });
   call.on(VoxImplant.CallEvents.Disconnected, ({ call }: EventHandlers.CallEvent) => {
-    setCall({ id, call, params: { video } });
-    //changeVideoParam(false);
-    sdkClient.showLocalVideo(false);
-    setTimeout(() => {
-      removeCall(id);
-      changeComponent('Dialing');
-    }, 3000);
-    toggleRemoteSharing(false);
+    if (isIncoming) $settings.getState().ringtone.pause();
+    else setCall({ id, call, params: { video } });
+
+    if (isIncoming && call.settings.id === $currentActiveCallId.getState()) {
+      // reset call settings only if it is active now
+      resetCallSettings();
+    }
+
+    if (call.settings.id === $currentSelectCallId.getState()) {
+      changeComponent('CallEnded');
+    } else if (call.signalingConnected) {
+      // show call ended notification only for already connected call
+      toggleNotification(true);
+      NotificationContent.pauseCallEnded.number = call.settings.number;
+      setNotificationState('pauseCallEnded');
+    }
+    removeCall(id);
+
+    if (!isIncoming && call.settings.id === $currentActiveCallId.getState()) {
+      // reset call settings only if it is active now
+      resetCallSettings();
+    }
+    // disable local video only if there are no active calls left
+    if (!$currentActiveCallId.getState()) {
+      sdkClient.showLocalVideo(false);
+    }
   });
-  call.on(VoxImplant.CallEvents.Failed, ({ call, code }: EventHandlers.Failed) => {
+
+  call.on(VoxImplant.CallEvents.Failed, ({ call, code, reason }: EventHandlers.Failed) => {
     setCall({ id, call, params: { video } });
-    setFailedStatus(`${code}`);
-    //changeVideoParam(false);
-    sdkClient.showLocalVideo(false);
-    setTimeout(() => {
-      removeCall(id);
-      changeComponent('Dialing');
-    }, 4000);
-    toggleRemoteSharing(false);
+    setFailedStatus(CALL_STATUSES.includes(`${code}`) ? `${code}` : reason);
+    changeComponent('CallEnded');
+
+    if (isIncoming) $settings.getState().ringtone.pause();
+    // disable local video only if there are no active calls left
+    if (!$currentActiveCallId.getState()) {
+      sdkClient.showLocalVideo(false);
+    }
+    resetCallSettings();
+    removeCall(id);
   });
+
   call.on(
     VoxImplant.CallEvents.ActiveUpdated,
     ({ call, new: newValue }: EventHandlers.ActiveUpdated) => {
@@ -132,22 +218,43 @@ export const createSdkCall = (number: string, video?: boolean): void => {
       setCall({ id, call, params: { video } });
     }
   );
-  call.on(VoxImplant.CallEvents.MessageReceived, (ev) => {
-    const currentID = $currentActiveCallId.getState();
-    const text = JSON.parse(ev.text);
-    if (text?.name === 'mute') {
-      toggleRemoteAudio({ id: currentID });
-    } else if (text?.name === 'initState') {
-      text.audioMute && toggleRemoteAudio({ id: currentID });
-      text.videoMute && toggleRemoteVideo({ id: currentID, status: false });
-    } else if (text?.name === 'sharing') {
-      toggleRemoteSharing(!$settings.getState().remoteSharing);
-    }
-  });
+  call.on(VoxImplant.CallEvents.MessageReceived, handleMessageReceived);
+};
+
+export const createSdkCall = (number: string, video?: boolean): void => {
+  if (!isClientLoggedIn()) {
+    setNotSignInComponent();
+    return;
+  }
+  const useVideo = {
+    sendVideo: Boolean(video),
+    receiveVideo: !appConfig.AUDIO_ONLY,
+  };
+  const callSettings: CallSettings = {
+    number,
+    video: useVideo,
+  };
+  const call = sdkClient.call(callSettings);
+  const id = call.id();
+  setLastCallNumber(number);
+  setCall({ id, call, params: { video } });
+  setSelectCall(id); // open Call in UI
+
+  changeComponent(CALL_COMPONENT_NAME);
+  if (video) changeVideoParam(video);
+
+  resetCallDestination();
+  handleCall(true, call, video); // the first flag indicates is it incoming or create call
+};
+
+export const toggleActiveSDK = (id: string): Promise<EventHandlers.Updated> => {
+  const call = $calls.getState()[id].call;
+  const value = !call.active();
+  return call.setActive(value);
 };
 
 export const sendTone = (char: string): void => {
-  const currentCallId = currentActiveCall.getState()?.id;
+  const currentCallId = $currentActiveCallId.getState();
   if (currentCallId) {
     const currentCall = $calls.getState()[currentCallId]?.call;
     currentCall.sendTone(char);
@@ -155,7 +262,7 @@ export const sendTone = (char: string): void => {
 };
 
 export const transferSdkCall = (call1: Call, call2: Call): void => {
-  sdkClient.transferCall(call1, call2);
+  if (appConfig.AUDIO_ONLY) sdkClient.transferCall(call1, call2); // transfers work only for audio calls
 };
 
 const listenMicAccessResult = (): void => {
@@ -166,14 +273,14 @@ const onMicAccessResult = ({ result }: EventHandlers.MicAccessResult): void => {
   changeSoftphoneParameters({ micAccessResult: result });
 };
 
-export const setAudioParam = async (): Promise<void> => {
-  getAudios();
-  const audioList = $settings.getState().audios;
-  if (audioList.length > 0) {
-    for (const audio of audioList) {
-      audio.volume = changedSettings.getState();
-    }
-  }
+export const setAudioVolume = async (call: Call, volume: number): Promise<void> => {
+  call.getEndpoints().forEach((endpoint) =>
+    endpoint.mediaRenderers.forEach((mediaRenderer) => {
+      if (mediaRenderer.kind === 'audio') {
+        mediaRenderer.setVolume(volume);
+      }
+    })
+  );
 };
 
 export const setSdkQueueStatus = async (
@@ -181,15 +288,20 @@ export const setSdkQueueStatus = async (
 ): Promise<void> => {
   const signInFields = $signInFields.getState();
   const { queueType } = signInFields;
-  let result;
   if (queueType === QueueType.SmartQueue) {
-    result = await sdkClient.setOperatorSQMessagingStatus(OperatorACDStatuses[status]);
+    // for SQ statuses to work, it must be installed after ACD
+    await Promise.race([
+      sdkClient.setOperatorACDStatus(OperatorACDStatuses[status]), // setOperatorACDStatus (responsible for the readiness of the operator to receive calls)
+      sdkClient.setOperatorSQMessagingStatus(OperatorACDStatuses[status]), // setOperatorSQMessagingStatus (responsible for the readiness of the operator to receive messages)
+    ])
+      .then((res) => setQueueStatus(res))
+      .catch((err) => console.error('SQMessaging error', err));
   }
   if (queueType === QueueType.ACD) {
-    result = await sdkClient.setOperatorACDStatus(OperatorACDStatuses[status]);
-  }
-  if (result) {
-    setQueueStatus(result);
+    await sdkClient
+      .setOperatorACDStatus(OperatorACDStatuses[status])
+      .then((res) => setQueueStatus(res))
+      .catch((err) => console.error('ACDStatus error', err));
   }
 };
 
@@ -206,66 +318,82 @@ const getSdkQueueStatus = async () => {
   setQueueStatus(result);
 };
 
-export const sdkLogin = async (params: SignInFields) => {
-  const { userName, accountName, applicationName, password, queueType } = params;
-  const loginData = `${userName}@${applicationName}.${accountName}.voximplant.com`;
+export const sdkLogin = async (params: SignInFields): Promise<void> => {
+  const { userName, accountName, applicationName, password, queueType, node } = params;
+  const loginData = `${userName}@${applicationName}.${accountName}.${node}.voximplant.com`;
   sdkClient.getClientState();
 
   if (!sdkClient.alreadyInitialized) {
     listenMicAccessResult();
-    //TODO поправить QueueType
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const params: Config = {
       remoteVideoContainerId: 'remote-video',
       localVideoContainerId: 'local-video',
+      // use custom QueueType instead SDK QueueTypes, for processing 'None' state
       ...(queueType !== QueueType.None && { queueType: queueType }),
     };
     const result = await sdkClient.init(params);
     if (!result) {
-      return false;
+      return;
     }
     changeSoftphoneParameters({ status: 'initialized' });
   }
-  const checkActiveAudioDevice = await requestMicrophonePermission();
-  const connect = await sdkClient.connect();
+  const checkActiveAudioDevice = await requestMicrophonePermission().catch((e) => {
+    console.error('requestMicrophonePermission Error:', e);
+    openAccessMicrophoneInfo();
+  });
   if (!checkActiveAudioDevice) {
-    changeComponent('Info');
-    changeComponentInfoStatus('accessMicrophone');
+    openAccessMicrophoneInfo();
+    return;
   }
+  const connect = await sdkClient.connect();
   if (connect) {
     await getDevicesFx(null);
-    await addActiveAudioDevice({
-      label: $settings.getState().audioDevices[0].name,
-      value: $settings.getState().audioDevices[0].id,
-    });
-    await addActiveVideoDevice({
-      label: $settings.getState().videoDevices[0].name,
-      value: $settings.getState().videoDevices[0].id,
-    });
+    const settingsStore = $settings.getState();
+    if (settingsStore.audioDevices.length) {
+      await addActiveAudioDevice({
+        label: settingsStore.audioDevices[0].name,
+        value: settingsStore.audioDevices[0].id,
+      });
+    }
+    if (settingsStore.videoDevices?.length) {
+      await addActiveVideoDevice({
+        label: settingsStore.videoDevices[0].name,
+        value: settingsStore.videoDevices[0].id,
+      });
+    }
     setRingtoneParam();
     changeSoftphoneParameters({ status: 'connected' });
   }
 
-  await sdkClient
+  const loginResult = await sdkClient
     .login(loginData, password)
-    .then(() => changeComponent('Dialing'))
+    .then(() => {
+      toggleNotification(false);
+      return changeComponent('Dialing');
+    })
     .catch((e) => {
       switch (e.code) {
         case 404:
-          // wrong username
-          setError({ field: 'userName', value: 'Incorrect user name' });
+          // wrong loginData (userName or accountName, or applicationName)
+          setError({ field: 'userName', value: `${e.code}.userName` });
+          setError({ field: 'accountName', value: `${e.code}.accountName` });
+          setError({ field: 'applicationName', value: `${e.code}.applicationName` });
           break;
         case 401:
           // wrong password
-          setError({ field: 'password', value: 'Incorrect password' });
+          setError({ field: 'password', value: `${e.code}` });
           break;
         default:
           // other error
           setError({ field: 'notEnough', value: 'Internal error' });
+          toggleNotification(true);
+          setNotificationState('loginFailed');
       }
     });
+  if (!loginResult) return;
 
   await getSdkQueueStatus();
   interval = window.setInterval(() => {
@@ -284,98 +412,90 @@ sdkClient.on(VoxImplant.Events.IncomingCall, ({ call }: EventHandlers.IncomingCa
   const id = call.id();
   const video = Boolean(call.settings.video);
   setCall({ id, call, params: { video } });
-  const renderers = new Set<{ render: (el: HTMLElement | null) => void }>();
-  const currentCallId = useStore($currentActiveCallId);
-  call.on(VoxImplant.CallEvents.EndpointAdded, (event) => {
-    event.endpoint.on(
-      VoxImplant.EndpointEvents.RemoteMediaAdded,
-      ({ mediaRenderer }: { mediaRenderer: { render: (el: HTMLElement | null) => void } }) => {
-        const toDiv = document.getElementById('remote-video');
-        renderers.add(mediaRenderer);
-        setTimeout(() => {
-          renderers.forEach((renderer) => renderer.render(toDiv));
-        }, 200);
-        toggleRemoteVideo({ id: currentCallId.value, status: true });
-      }
-    );
-    event.endpoint.on(
-      VoxImplant.EndpointEvents.RemoteMediaRemoved,
-      ({ mediaRenderer }: { mediaRenderer: { render: (el: HTMLElement | null) => void } }) => {
-        toggleRemoteVideo({ id: currentCallId.value, status: false });
-        renderers.delete(mediaRenderer);
-      }
-    );
-  });
-  call.on(VoxImplant.CallEvents.Connected, ({ call }: EventHandlers.IncomingCall) => {
-    setAllCallAsPaused(id);
-    setCall({ id, call, params: { video } });
-    setActiveCall(id);
-    $settings.getState().ringtone.pause();
-    if ($settings.getState().mute || $settings.getState().videoMute) {
-      const data = {
-        name: 'initState',
-        audioMute: $settings.getState().mute,
-        videoMute: $settings.getState().videoMute,
-      };
-      sendTextMessage(JSON.stringify(data));
-    }
-    if (video) {
-      changeComponent('VideoCall');
-    } else {
-      changeComponent('Call');
-    }
-    /*setTimeout(() => {
-      const toDiv = document.getElementById('remote-video');
-      renderers.forEach((renderer) => renderer.render(toDiv));
-      call.getEndpoints().forEach((ep) => ep.off(VoxImplant.EndpointEvents.RemoteMediaAdded));
-    }, 200);*/
-  });
-  call.on(VoxImplant.CallEvents.Disconnected, () => {
-    $settings.getState().ringtone.pause();
-    removeCall(id);
-    sdkClient.showLocalVideo(false);
-    changeComponent('Dialing');
-    changeComponentDialingStatus('firstCall');
-    toggleRemoteSharing(false);
-  });
-  call.on(VoxImplant.CallEvents.Failed, ({ call }: EventHandlers.Failed) => {
-    setCall({ id, call, params: { video } });
-    $settings.getState().ringtone.pause();
-    sdkClient.showLocalVideo(false);
-    removeCall(id);
-    toggleRemoteSharing(false);
-  });
-  call.on(
-    VoxImplant.CallEvents.ActiveUpdated,
-    ({ call, new: newValue }: EventHandlers.ActiveUpdated) => {
-      if (newValue) {
-        setActiveCall(id);
-      }
-      setCall({ id, call, params: { video } });
-    }
-  );
-  call.on(VoxImplant.CallEvents.MessageReceived, (ev: any) => {
-    const currentID = $currentActiveCallId.getState();
-    const text = JSON.parse(ev.text);
-    if (text?.name === 'mute') {
-      toggleRemoteAudio({ id: currentID });
-    } else if (text?.name === 'initState') {
-      text.audioMute && toggleRemoteAudio({ id: currentID });
-      text.videoMute && toggleRemoteVideo({ id: currentID, status: false });
-    } else if (text?.name === 'sharing') {
-      toggleRemoteSharing(!$settings.getState().remoteSharing);
-    }
-  });
+
+  handleCall(false, call, video); // the first flag indicates is it incoming or create call
 });
 
+/* const changeCallState = (value: EventHandlers.Updated) => {
+  value.call.settings.active ? setActiveCall(value.call.settings.id) : setActiveCall('');
+  changeCanToggle({ id: value.call.settings.id, status: value.call.settings.active });
+}; */
+
 sdkClient.on(VoxImplant.Events.ACDStatusUpdated, (status) => {
+  if (status.status === 'BANNED') toggleBannedStatus(true);
+  if (status.status !== 'BANNED') toggleBannedStatus(false);
   setQueueStatus(status.status);
 });
 
-export const sendTextMessage = (text: string): void => {
-  const currentCallID = useStore($currentActiveCallId);
-  if (currentCallID.value) {
-    const currentCall = sdkClient.getCall(currentCallID.value);
+// attempt to login in after losing connection
+const loginAfterConnectionClosed = () => {
+  restoreFillForm();
+  loginFx({})
+    .then(() => {
+      toggleReconnect(false);
+    })
+    .catch(() => {
+      if (LOGIN_ATTEMPTS_QUANTITY) {
+        setTimeout(() => loginAfterConnectionClosed(), RELOGIN_ATTEMPT_PERIOD);
+        LOGIN_ATTEMPTS_QUANTITY--;
+      } else {
+        setNotSignInComponent();
+        toggleReconnect(false);
+      }
+    });
+};
+
+sdkClient.on(VoxImplant.Events.ConnectionClosed, () => {
+  if ($isTryRelogin.getState()) {
+    // try to re-login if the user at the entrance set "remember me"
+    setTimeout(() => loginAfterConnectionClosed(), RELOGIN_ATTEMPT_PERIOD);
+  } else {
+    // show session expired notification only if user has active reconnecting state
+    if ($notificationState.getState() === 'reconnecting' && $showNotification.getState()) {
+      setTimeout(() => {
+        setNotificationState('sessionExpired');
+        toggleNotification(true);
+      });
+    }
+    toggleReconnect(false);
+  }
+});
+
+sdkClient.on(VoxImplant.Events.Reconnecting, () => {
+  toggleReconnect(true);
+});
+
+sdkClient.on(VoxImplant.Events.Reconnected, () => {
+  toggleReconnect(false);
+});
+
+export const sendTextMessage = (text: string, callId?: string | undefined): void => {
+  const currentCallID = callId ?? $currentSelectCallId.getState();
+  if (currentCallID) {
+    const currentCall = sdkClient.getCall(currentCallID);
     if (currentCall) currentCall.sendMessage(text);
   }
+};
+
+export const videoSharingStopListener = (): void => {
+  const renderer = VoxImplant.Hardware.StreamManager.get().getLocalMediaRenderers()[0];
+  // when user start screen sharing without local video, MediaRenderer have kind === video
+  if (renderer.kind === 'sharing' || renderer.kind === 'video') {
+    renderer.stream.getTracks().forEach((videoTrack) => {
+      videoTrack.onended = () => {
+        renderer.kind === 'video' && changeVideoParam(false); // disable local video when user start screen sharing without local video
+        toggleSharingVideo(false); // UI change to layout on without screen sharing
+        const textMessage = {
+          name: 'sharing',
+          status: false,
+        };
+        sendTextMessage(JSON.stringify(textMessage)); // send screen sharing end events
+      };
+    });
+  }
+};
+
+export const isClientLoggedIn = (): boolean => {
+  const isLogin = sdkClient.getClientState();
+  return isLogin === VoxImplant.ClientState.LOGGED_IN;
 };

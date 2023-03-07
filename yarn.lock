@@ -2260,6 +2260,48 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@voximplant/ui-kit-for-vuejs@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@voximplant/ui-kit-for-vuejs@workspace:."
+  dependencies:
+    "@intlify/vue-i18n-loader": 5.0.0
+    "@types/chai": 4.2.11
+    "@types/mocha": 5.2.4
+    "@typescript-eslint/eslint-plugin": 4.18.0
+    "@typescript-eslint/parser": 4.18.0
+    "@voximplant/spaceui": 2.17.0
+    "@vue/cli-plugin-babel": 4.5.0
+    "@vue/cli-plugin-eslint": 4.5.0
+    "@vue/cli-plugin-router": 4.5.0
+    "@vue/cli-plugin-typescript": 4.5.0
+    "@vue/cli-plugin-unit-mocha": 4.5.0
+    "@vue/cli-service": 4.5.0
+    "@vue/compiler-sfc": 3.0.0
+    "@vue/eslint-config-prettier": 6.0.0
+    "@vue/eslint-config-typescript": 7.0.0
+    chai: 4.1.2
+    commitlint: 13.1.0
+    effector: 22.1.1
+    effector-vue: 22.0.2
+    eslint: 6.7.2
+    eslint-plugin-prettier: 3.3.1
+    eslint-plugin-vue: 7.0.0
+    lint-staged: 11.1.2
+    postcss-custom-media: 8.0.0
+    postcss-nested: 4.2.3
+    postcss-preset-env: 6.7.0
+    prettier: 2.2.1
+    pug: 3.0.2
+    pug-plain-loader: 1.1.0
+    typescript: 4.1.5
+    voximplant-websdk: beta
+    vue: 3.2.22
+    vue-draggable-next: 2.1.0
+    vue-i18n: 9.1.7
+    vue-router: 4.0.2
+  languageName: unknown
+  linkType: soft
+
 "@vue/babel-helper-vue-jsx-merge-props@npm:^1.2.1":
   version: 1.2.1
   resolution: "@vue/babel-helper-vue-jsx-merge-props@npm:1.2.1"
@@ -2780,6 +2822,13 @@ __metadata:
   version: 6.1.4
   resolution: "@vue/devtools-api@npm:6.1.4"
   checksum: 027bb138b03ec7147dd15e5d0ef28d5b72c822530396cc8a86bc6fdb049dc6850314b9e897e497064e3ed47fad229a18141f56b8b8ca3d41092a576dc5b6538d
+  languageName: node
+  linkType: hard
+
+"@vue/devtools-api@npm:^6.1.4":
+  version: 6.4.4
+  resolution: "@vue/devtools-api@npm:6.4.4"
+  checksum: d4d1079202579eceb8efb503b695dead39d2da4d693419a4a3f4e1823358726325bc2912e15c580ef94128ed61f42be0ce6a23ac013967e04d971b0a7158a263
   languageName: node
   linkType: hard
 
@@ -14848,10 +14897,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"voximplant-websdk@npm:4.6.1-2394":
-  version: 4.6.1-2394
-  resolution: "voximplant-websdk@npm:4.6.1-2394"
-  checksum: 739fa04e754d0851af38723e1057f5ed0c4355d9ecc4d363da533a4e7a0e071cde6359eeddac99158e06eb2c0de08b2f7c44a571e5b9741bc6783e6925624905
+"voximplant-websdk@npm:beta":
+  version: 4.6.2-2468
+  resolution: "voximplant-websdk@npm:4.6.2-2468"
+  checksum: 6315a4fa6167c6c3525ff8bda5fa7ea8983464bd637462cc90370ab74d871c3fa6a3af6047eb0ca3a65f9944eaae2228f8fdd9996843dddf80c606ded0314346
+  languageName: node
+  linkType: hard
+
+"vue-draggable-next@npm:2.1.0":
+  version: 2.1.0
+  resolution: "vue-draggable-next@npm:2.1.0"
+  dependencies:
+    vue-router: 4
+  peerDependencies:
+    sortablejs: ^1.14.0
+    vue: ^3.2.2
+  checksum: 29fa9bdc8b051884999ddb457ba75cbfc6bf491a835e17515a3f558677f720abbadfc1e8060545d45737e01b70c523280dae23af0b266a608d0df73fd16f8f6a
   languageName: node
   linkType: hard
 
@@ -14924,6 +14985,17 @@ __metadata:
     vue-template-compiler:
       optional: true
   checksum: ca4c99b2617b207eb96925b889669f8bfecb6e82d22ed59220b324b6caaccc38bf3bc1d7961353155ab19ec71b791e887e8a06109ec719e8a791a2b00a2420bc
+  languageName: node
+  linkType: hard
+
+"vue-router@npm:4":
+  version: 4.1.5
+  resolution: "vue-router@npm:4.1.5"
+  dependencies:
+    "@vue/devtools-api": ^6.1.4
+  peerDependencies:
+    vue: ^3.2.0
+  checksum: cafa2f4e14188bca0d4d45e05a901b6ff7bb3933010a6b2c9372bed7fa872bb2e18f1f033b23f540d3a75e1ecd6840b79a5ba5a714de01942d02e1e6cce88dec
   languageName: node
   linkType: hard
 
@@ -15199,47 +15271,6 @@ __metadata:
   checksum: 013fa24c00d4261e16ebca60353fa6f848e417b5a44bdf28c16ebebd67fa61e960420bb314c8df05cfe2dad9b90efabcf38fd6875f2361922769a0384085ef1e
   languageName: node
   linkType: hard
-
-"webphone-vue@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "webphone-vue@workspace:."
-  dependencies:
-    "@intlify/vue-i18n-loader": 5.0.0
-    "@types/chai": 4.2.11
-    "@types/mocha": 5.2.4
-    "@typescript-eslint/eslint-plugin": 4.18.0
-    "@typescript-eslint/parser": 4.18.0
-    "@voximplant/spaceui": 2.17.0
-    "@vue/cli-plugin-babel": 4.5.0
-    "@vue/cli-plugin-eslint": 4.5.0
-    "@vue/cli-plugin-router": 4.5.0
-    "@vue/cli-plugin-typescript": 4.5.0
-    "@vue/cli-plugin-unit-mocha": 4.5.0
-    "@vue/cli-service": 4.5.0
-    "@vue/compiler-sfc": 3.0.0
-    "@vue/eslint-config-prettier": 6.0.0
-    "@vue/eslint-config-typescript": 7.0.0
-    chai: 4.1.2
-    commitlint: 13.1.0
-    effector: 22.1.1
-    effector-vue: 22.0.2
-    eslint: 6.7.2
-    eslint-plugin-prettier: 3.3.1
-    eslint-plugin-vue: 7.0.0
-    lint-staged: 11.1.2
-    postcss-custom-media: 8.0.0
-    postcss-nested: 4.2.3
-    postcss-preset-env: 6.7.0
-    prettier: 2.2.1
-    pug: 3.0.2
-    pug-plain-loader: 1.1.0
-    typescript: 4.1.5
-    voximplant-websdk: 4.6.1-2394
-    vue: 3.2.22
-    vue-i18n: 9.1.7
-    vue-router: 4.0.2
-  languageName: unknown
-  linkType: soft
 
 "websocket-driver@npm:>=0.5.1, websocket-driver@npm:^0.7.4":
   version: 0.7.4

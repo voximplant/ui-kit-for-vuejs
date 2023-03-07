@@ -2,9 +2,9 @@
 {
   "en": {
     "isNotSignIn": {
-      "title": "Welcome!",
-      "description": "This is a softphone based on our Web SDK. To make and receive calls, log in with a username created in your application.",
-      "button": "Proceed"
+      "title": "To make and receive calls you need to log in",
+      "description": "Use your application user’s credentials.",
+      "button": "Continue"
     },
     "accessMicrophone": {
       "title": "Allow access to your microphone",
@@ -19,8 +19,8 @@
   },
   "ru": {
     "isNotSignIn": {
-      "title": "Добро пожаловать!",
-      "description": "Это софтфон, разработанный с помощью нашего Web SDK. Чтобы совершать и принимать звонки, авторизуйтесь под именем пользователя, созданным в Вашем приложении.",
+      "title": "Для совершения и приема звонков вам необходимо авторизоваться",
+      "description": "Используйте учетные данные пользователя вашего приложения.",
       "button": "Продолжить"
     },
     "accessMicrophone": {
@@ -42,25 +42,25 @@
   .content-wrap
     Illustration.pic(
       v-if="infoStatus === 'isNotSignIn'"
-      illustrationsUrl="/static/icons-pack.svg"
+      illustrationsUrl="static/icons-pack.svg"
       name="started"
-      width="203"
+      width="216"
       height="175"
     )
-    Icon.icon-success(
+    Icon.icon-status(
       v-if="infoStatus !== 'isNotSignIn'"
       height="40"
       width="40"
       :name="infoStatus === 'transferredCall' ? 'ic24-success-fill' : 'ic24-info-fill'"
-      color="--sui-green-500"
+      :color="infoStatus === 'transferredCall' ? '--sui-green-500' : '--sui-blue-500'"
     )
-    Typography.title {{ t(`${infoStatus}.title`) }}
-    Typography.description {{ t(`${infoStatus}.description`, { callNumberFrom: `${lastTransferredCallNumbers.number1}`,callNumberTo: `${lastTransferredCallNumbers.number2}`,}) }}
+    Typography(:class="getTitleClass").title {{ t(`${infoStatus}.title`) }}
+    Typography(:class="getDescriptionClass").description {{ t(`${infoStatus}.description`, { callNumberFrom: `${lastTransferredCallNumbers.number1}`,callNumberTo: `${lastTransferredCallNumbers.number2}`,}) }}
     Button(@click="changeInfoStatus(infoStatus)") {{ t(`${infoStatus}.button`) }}
 </template>
 
 <script lang="ts">
-  import { defineComponent } from 'vue';
+  import { computed, defineComponent } from 'vue';
   import { Button, Icon, Illustration, Typography } from '@voximplant/spaceui';
   import { useI18n } from 'vue-i18n';
   import { $infoComponentStatus, changeInfoStatus } from '@/store/components/index';
@@ -74,7 +74,24 @@
       const { t } = useI18n();
       const infoStatus = useStore($infoComponentStatus);
       const lastTransferredCallNumbers = useStore($lastTransferredCallNumbers);
-      return { t, infoStatus, changeInfoStatus, activeCalls, lastTransferredCallNumbers };
+      const getTitleClass = computed(() => ({
+        'title-welcome': infoStatus.value === 'isNotSignIn',
+        'title-text': infoStatus.value !== 'isNotSignIn',
+      }));
+      const getDescriptionClass = computed(() => ({
+        'description-welcome': infoStatus.value === 'isNotSignIn',
+        'Description-text': infoStatus.value !== 'isNotSignIn',
+      }));
+
+      return {
+        t,
+        infoStatus,
+        changeInfoStatus,
+        activeCalls,
+        lastTransferredCallNumbers,
+        getTitleClass,
+        getDescriptionClass,
+      };
     },
   });
 </script>
@@ -91,30 +108,42 @@
       height: fit-content;
       justify-content: center;
       margin: auto;
-      padding: 24px;
+      padding: 87.5px 24px;
     }
     & .pic {
       height: fit-content;
       margin-bottom: 30px;
     }
-    & .icon-success {
+    & .icon-status {
       margin-bottom: 24px;
     }
     & .title {
       color: var(--sui-gray-900);
       display: block;
-      font-size: 20px;
       font-weight: 500;
-      line-height: 24px;
       margin-bottom: 8px;
       text-align: center;
     }
-    & .description {
-      color: var(--sui-gray-700);
+    & .title-welcome {
       font-size: 14px;
       line-height: 20px;
+    }
+    & .title-text {
+      font-size: 20px;
+      line-height: 24px;
+    }
+    & .description {
+      color: var(--sui-gray-700);
       margin-bottom: 16px;
       text-align: center;
+    }
+    & .description-welcome {
+      font-size: 12px;
+      line-height: 16px;
+    }
+    & .description-text {
+      font-size: 14px;
+      line-height: 20px;
     }
   }
 </style>

@@ -124,6 +124,14 @@ J[(store)]
 
 Additionally, the descriptions for data and functions appear at the arrows between blocks.
 
+### Configuration
+
+The Voximplant voice & video app's configuration is stored in the `/src/config.ts` file and contains the following flags:
+
+- `AUDIO_ONLY` — Specifies whether the call should send and receive video, disabling the video components. The default value is **false**.
+- `IS_PLATFORM_INTEGRATED` — Specifies whether the app is integrated into platform, adds the close button to the header. The default value is **false**.
+- `IS_CUSTOMIZE` — Specifies whether to disable the CSS height and width restrictions, adapting the window size to the content. The default value is **false**.
+
 ### Authorization
 
 The SignUp component is responsible for authorization. It consists of the following blocks:
@@ -183,7 +191,7 @@ The `sdkLogin` method accepts the field values of the `SignInFields` type. This 
 - password
 - queueType
 
-The form values provide the login `loginData` in the following format: `${userName}@${applicationName}.${accountName}.voximplant.com`. 
+The form values provide the login `loginData` in the following format: `${userName}@${applicationName}.${accountName}.${node}.voximplant.com`. 
 If the SDK is not initialized yet, the SDK checks audio device access, and if it succeeds, the SDK prepares a configuration file with video containers.
 This config is necessary for SDK initialization `await sdkClient.init(params)` and connection to the cloud `sdkClient.connect()`.
 Set the active device then login `sdkClient.login()` with the `loginData` and `password` from the field values.
@@ -263,7 +271,9 @@ G --> |"type === video"|L("createCall()")
 
 #### Audio call
 
-The `src/components/Call.vue` component scheme:
+If you want to use the softphone for audio calls only, set the `AUDIO_ONLY` parameter to **true** in the `src/config.ts` configuration file.
+
+The `src/components/Call.vue` component is responsible for UI of audio calls. Here is the `Call.vue` elements scheme:
 
 ```mermaid
 graph TD
@@ -301,8 +311,6 @@ Call the `createCall(number, video)` method with the following parameters:
 - number: String — call destinations
 - video: Boolean — specifies whether the call has video
 
-Before making a new call, all the current calls will be put on hold setAllCallAsPaused().
-
 Making an audio call:
 
 1. Create `CallSettings` for the call. Learn more in the [documentation](https://voximplant.com/docs/references/websdk/voximplant/callsettings)
@@ -313,24 +321,44 @@ Making an audio call:
 6. The openCallState event triggers, changing the page to `Call`
 7. The call receives [call events](https://voximplant.com/docs/references/websdk/voximplant/callevents). Learn more in the [Event list](#event-list) section
 
-In case of errors, the component changes to `Dialing`
+In case of errors, the component changes to `CallEnded` and shows the error from the `currentSelectCall.status` store.
+
+The softphone can process only one single call.
+When you create a call via `createCall`:
+1. the active call sets to pause `setCurrentCallAsPaused()`
+2. the interlocutor receives the `setActive(false)` event
+3. a new call creates `createSdkCall(number, video)`
+4. when the [Connected](https://voximplant.com/docs/references/websdk/voximplant/callevents#connected) event triggers, the new call becomes active `call.setActive(true)` and saves into `$currentActiveCallId`
 
 ##### Inbound call
 
-To receive a call, subscribe the SDK to the `VoxImplant.Events.IncomingCall` event
+If the user have an active call, when the new call's [Connected](https://voximplant.com/docs/references/websdk/voximplant/callevents#connected) event triggers, the old call is set to hold.  
+The interlocutor receives the `setActive(false)` event and the following notification:
+
+![img_20.jpg](readme-images/img_20.jpg)
+
+When the hold call ends, the `setNotificationState('pauseCallEnded');` event triggers and the following notification appears:
+
+![img_19.jpg](readme-images/img_19.jpg)
+
+To receive inbound calls, subscribe the sdkClient to the `VoxImplant.Events.IncomingCall` event:
 - set the active call to the `$calls` store
-- set the [call events](https://voximplant.com/docs/references/websdk/voximplant/callevents)
+- set the [call events](https://voximplant.com/docs/references/websdk/voximplant/callevents) the same way as during the new call creation `handleCall()`
 
 #### Receiving a message during a call via `MessageReceived`
 
 To send and receive messages during a call, process the MessageReceived event in the VoxEngine scenario. 
 You can see the scenario example in the [VoxEngine call scenario](#voxengine-call-scenario) section.
 
+The `handleMessageReceived()` method is responsible for processing custom events.
+
 Message type list:
 
 - mute — a user mutes the microphone, changing the call's mute parameter, showing the icon-mute icon in the UI
 - initState — the call is started. the message contains information on whether the user's audio/video is enabled
 - sharing — a user enables screen sharing, changing the calls remoteSharing parameter, changing the video resolution in the UI
+- setActive — an interlocutor changes the call hold status
+- userBusy — the interlocutor is busy having another active call
 
 #### Video call
 
@@ -339,7 +367,7 @@ The `src/components/VideoCall.vue` component:
 ```mermaid
 graph TD
     A[VideoCall.vue] --> B[.video-container]
-    A --> C[CallFooter.vue]
+    A --> C[VideoCallFooter.vue]
     A -->  E["end call Button"]
     E --> |"hangUp(call ID)"|Y("SDK Call.hangup()")
 ```
@@ -350,18 +378,23 @@ Scheme of the elements inside the `.video-container` block:
 graph TD
     B[.video-container] --> L[("$settings.videoMute")]
     B --> R[("$calls[id].params.remoteVideo")]
-    L --> |TRUE| O[.outgoing-video]
-    L --> |FALSE| W[UserWithoutVideo]
+    B --> S[("$settings.maximize")]
+    L --> |FALSE| O[.outgoing-video]
+    L --> |TRUE| W[UserWithoutVideo]
+    L --> |FALSE| D[DraggableBlock]
+    S --> |FALSE| D[DraggableBlock]
     R --> |TRUE| I[.incoming-video]
     R --> |FALSE| W
     I --> |"call.params.muted"|M[.icon-mic-off]
 ```
 
-Scheme of the `src/components/calls/CallFooter.vue` call control panel:
+Scheme of the `src/components/calls/VideoCallFooter.vue` call control panel:
+
+![img_17.jpg](readme-images/img_17.jpg)
 
 ```mermaid
 graph TD
-    C[CallFooter.vue] --> V["video Button"]
+    C[VideoCallFooter.vue] --> V["video Button"]
     C --> T["sharing Button"]
     C --> R[".service-buttons"]
 ```
@@ -390,16 +423,16 @@ graph TD
 The video toggle button in the `.buttons-wrap` block sends the 'video' parameter to the `actionOnBtn(type)` method.
 Depending on the parameter, the boolean 'video' parameter is passed to the `createCall()` method. 
 This parameter specifies the [video flags](https://voximplant.com/docs/references/websdk/voximplant/videoflags) the SDK receives on making a call.
-Enable sending and receiving video:
+Enable sending video:
 
 ```javascript
 const useVideo = {
-    sendVideo: video,
-    receiveVideo: video,
+    sendVideo: video, // sending local video
+    receiveVideo: !appConfig.AUDIO_ONLY, // enables receiving video and depends on the audio/video mode
 };
 ```
 
-The `video: true` parameter is stored in $calls. Depending on its value, the `openCallState` event opens the `VideoCall` component.
+The `video: true` parameter is stored in $calls.
 
 Take note of the following events while working with remote media in `EndpointAdded`:
 - `RemoteMediaAdded` adding a video from a remote side
@@ -409,9 +442,27 @@ Inbound `mediaRenderer` from the web SDK event is rendered/removed in/from the d
 The `remoteVideo` parameter is added to $calls and the video element styles in the UI change.
 You can find the UI variants for video calls in the [Layout components](#layout-components) section.
 
+##### Dragging the local video
+
+For user convenience, you can drag the local video during the video calls. The local video window has 3 positions:
+
+- top right (standard)
+- top left
+- bottom left
+
+![img_21.jpg](readme-images/img_21.jpg)
+
+For dragging the video window we use the [vue-draggable-next](https://www.npmjs.com/package/vue-draggable-next) library.
+
+The draggable block is in the `DraggableBlock.vue` component. We use [Teleport](https://vuejs.org/guide/built-ins/teleport.html) to place the local video `.outgoing-video`.
+
+The video slots have the `.stub` class. When the `startDrag` event triggers, the `VueDraggableNext` component changes its class to `slot-active`.
+
 ### Queues
 
 Task queues are necessary for contact center to distribute calls and conversations. You can read more about queues and contact center in [our documentation](https://voximplant.com/docs/guides/smartqueue).
+
+The list of all active calls displays in the `src/components/calls/ActiveCall.vue` list.
 
 #### Operator statuses
 
@@ -425,25 +476,23 @@ When the [ACDStatusUpdated](https://voximplant.com/docs/references/websdk/voximp
 You can set the status manually via the `setSdkQueueStatus(status)` method with the desired status.
 The default queue type is `None`, and the default status is [Online](https://voximplant.com/docs/references/websdk/voximplant/operatoracdstatuses#online)
 
+The 'Banned' status has a special UI banner. You can control the banned status via the `toggleBannedStatus` event in the `$isBannedStatus` store.
+
+![img_18.jpg](readme-images/img_18.jpg)
+
 ### Call transfers
 
 The softphone cannot make blind transfers. Use only transfers with confirmation. You need to have a connected call with the user to whom you want to transfer the call.
 
+By default, transfers are available only for audio calls. It means that the `AUDIO_ONLY` flag should have the **true** value in `src/config.ts`.
+
 Use the `transferCall(String)` method to transfer the call, which executes the [Client.transferCall(call1, call2)](https://voximplant.com/docs/references/websdk/voximplant/client#transfercall) method, where:
 
-- call1, is the current call that needs to be transferred
-- call2, a call from $call with the call ID passed to `transferCall`
+- call1, is the call from $call that needs to be transferred
+- call2, is the current active call to be transferred
 
 After the transfer, the active component switches to `Info.vue` with the notice about the transferred call in  `$infoComponentStatus`.
 The last transferred calls are stored in `$lastTransferredCallNumbers`
-
-#### Call list
-
-You can see the list of the active calls in `src/components/calls/ActiveCall.vue`.
-When making or receiving a call after the [Connected](https://voximplant.com/docs/references/websdk/voximplant/callevents#connected) event:
-
-1. All current calls are put on hold `setAllCallAsPaused()` => `call.setActive(false)`
-2. The new call is set as active `call.setActive(true)` and stored in `$currentActiveCallId`
 
 ### Event handling 
 
@@ -489,10 +538,14 @@ The hold status of the active call is changed. You can remove this event if you 
 
 - [MessageReceived](https://voximplant.com/docs/references/websdk/voximplant/callevents#messagereceived) 
 A new message is received. Process `MessageReceived` to create your events and create handlers.
+
 Implemented messages in the softphone:
+
 - `mute` toggling the microphone, stored in the `mute` parameter of the current call, an icon is displayed in the UI.
 - `initState` initial call state, such as sending and receiving the video.
 - `sharing` toggling screen sharing, stored in the `sharing` parameter of the current call, changing the grid in the UI.
+- `setActive` holding the call from the interlocuter side
+- `userBusy` indicating that your interlocuter is having an active call when unholding your call
 
 The messages are sent via the `sendTextMessage` method in `src/lib/sdkSource.ts` with `JSON.stringify(data)`, where `data` is:
 
@@ -854,26 +907,38 @@ Here is the result:
 Local video:
 
 - `outgoingVideoClasses` your local video
-  - `show-all-container` if the remote video is off, show the local video fullscreen ![img_6.jpg](readme-images/img_6.jpg)
-  - `show-to-window` remote video is full screen, the local video is in a separate window to the right ![img_7.jpg](readme-images/img_7.jpg)
-  - `maximize-container` when the softphone is maximized, the video is shown one by one, and the local video is to the left ![img_8.jpg](readme-images/img_8.jpg)
+  - `show-all-container` if the remote video is off, show the local video fullscreen  
+  ![img_6.jpg](readme-images/img_6.jpg)
+  - `show-to-window` remote video is full screen, the local video is in a separate window to the right  
+  ![img_7.jpg](readme-images/img_7.jpg)
+  - `maximize-container` when the softphone is maximized, the video is shown one by one, and the local video is to the left  
+  ![img_8.jpg](readme-images/img_8.jpg)
 
 - `outgoingBlockClasses` local video styles
-  - `hide-block` if there is no local video, the block is hidden ![img_11.jpg](readme-images/img_11.jpg)
+  - `hide-block` if there is no local video, the block is hidden  
+  ![img_11.jpg](readme-images/img_11.jpg)
 
 Remote video:
 
 - `incomingVideoClasses` styles when the remote video is present
-  - `show-all-container` show fullscreen ![img_9.jpg](readme-images/img_9.jpg)
-  - `maximize-container` when the softphone is maximized, the video is shown one by one, and the local video is to the left ![img_8.jpg](readme-images/img_8.jpg)
-  - `second-column` when the softphone is maximized, place the remote video to the center if the local video is not present ![img_12.jpg](readme-images/img_12.jpg)
+  - `show-all-container` show fullscreen  
+  ![img_7.jpg](readme-images/img_7.jpg)
+  - `maximize-container` when the softphone is maximized, the video is shown one by one, and the local video is to the left  
+  ![img_8.jpg](readme-images/img_8.jpg)
+  - `second-column` when the softphone is maximized, place the remote video to the center if the local video is not present  
+  ![img_12.jpg](readme-images/img_12.jpg)
 
 - `incomingBlockClasses` remote video block styles
-  - `show-all-container` if the remote video is present, show it fullscreen ![img_6.jpg](readme-images/img_6.jpg)
-  - `show-to-window` no remote video present, but the local video is present, show the information about the remote user to the right top ![img_10.jpg](readme-images/img_10.jpg)
-  - `hide-video` no remote video present. If the local video is present, hide the block, if it is not, show the placeholder `UserWithoutVideo` ![img_11.jpg](readme-images/img_11.jpg)
-  - `maximize-block` when the softphone is maximized, the video is shown one by one, and the local video is to the left ![img_8.jpg](readme-images/img_8.jpg)
-  - `second-column` when the softphone is maximized, place the remote video to the center if the local video is not present ![img_12.jpg](readme-images/img_12.jpg)
+  - `show-all-container` if the remote video is present, show it fullscreen  
+  ![img_7.jpg](readme-images/img_7.jpg)
+  - `show-to-window` no remote video present, but the local video is present, show the information about the remote user to the right top  
+  ![img_6.jpg](readme-images/img_6.jpg)
+  - `hide-video` no remote video present. If the local video is present, hide the block, if it is not, show the placeholder `UserWithoutVideo`  
+  ![img_11.jpg](readme-images/img_11.jpg)
+  - `maximize-block` when the softphone is maximized, the video is shown one by one, and the local video is to the left  
+  ![img_8.jpg](readme-images/img_8.jpg)
+  - `second-column` when the softphone is maximized, place the remote video to the center if the local video is not present  
+  ![img_12.jpg](readme-images/img_12.jpg)
 
 Common video blocks styles
 The computed `getClass` is responsible for video block styles. It changes depending on:
@@ -882,7 +947,7 @@ The computed `getClass` is responsible for video block styles. It changes depend
 3. remoteSharing is enabled/disabled and the resolution of the screen shared
 
 The `one-column-video` or `two-column-video` classes are applied if the softphone is maximized, depending on whether the local video is enabled.
-When the remote user shares their screen, the `remote-sharing` class is added and the video size increases by 70%.
+When the remote user shares their screen, the `remote-sharing` class is added, the remote video size maximizes to full screen, and the local video minimizes to a small video at the top right corner.
 
 ##### Layout customization
 
@@ -926,7 +991,10 @@ To increase screen sharing size, change the `.remote-sharing` size in CSS. For e
 
 #### Embeddable softphone
 
-If you only need to use calls, keep audio, numpad, lines, transfers, hold, and mute.
+If you only need to use audio calls:
+
+1. In `src/config.ts`, set the `AUDIO_ONLY` flag to **true**
+2. Remove components and keep only audio, numpad, lines, transfers, hold, and mute.
 
 Also, remove the video parameters from the types, you can find them in `src/types/index.ts`.
 Remove the `src/components/VideoCall.vue` component and `case 'transferredVideoCall'` redirects to this component in `src/store/components/init.ts`.
@@ -973,10 +1041,10 @@ Result: we removed the video functional and the softphone's fullscreen mode.
 
 #### Video platforms
 
-Remove the numpad, and lines, hold, keep audio/video switching, and keep the extended video.
+Remove the numpad, and lines, hold, keep audio/video switching, and keep the extended video. The `AUDIO_ONLY` flag should be set to **false** in `src/config.ts`.
 
 In addition to removing unnecessary functionality, remove unnecessary parameters from types, such as lines, hold, and so on. You can find them in `src/types/index.ts`.
-You can find the info on how to remove numpad in the [Replacing or removing compnonents](#replacing-or-removing-compnonents) section.
+You can find the info on how to remove numpad in the [Replacing or removing components](#replacing-or-removing-components) section.
 To remove information about lines in `Call.vue` and `CallFooter.vue` delete the following lines:
 
 ```vue

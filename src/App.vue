@@ -9,6 +9,7 @@
   import '@/store/calls/init';
   import '@/store/settings/init';
   import '@/store/components/init';
+  import '@/store/notification/index';
 
   export default defineComponent({
     name: 'PageShell',

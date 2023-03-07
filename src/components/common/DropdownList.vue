@@ -17,6 +17,6 @@
     padding: 8px 0;
     position: absolute;
     width: calc(100% - 48px);
-    z-index: 10;
+    z-index: 16; /* z-index 16-20: dropdown call list & incoming call  */
   }
 </style>

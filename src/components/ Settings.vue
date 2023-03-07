@@ -6,7 +6,7 @@
     "videoInput": "Camera",
     "ringtone": "Ringtone volume",
     "call": "Call volume",
-    "button": "Apply"
+    "button": "Close settings"
   },
   "ru": {
     "title": "Настройки",
@@ -14,7 +14,7 @@
     "videoInput": "Камера",
     "ringtone": "Громкость рингтона",
     "call": "Громкость звонка",
-    "button": "Применить"
+    "button": "Закрыть настройки"
   }
 }
 </i18n>
@@ -28,12 +28,14 @@
           iconOnly
           mode="flat"
           :icon="{name: 'ic20-chevron-left', color: '--sui-gray-900'}"
-          @click="changeComponent('Dialing');"
+          @click="openCallState(activeCallId || selectCallId)"
         )
         Typography.title {{ t('title') }}
       Select.video-select(
+        v-if="settings.videoDevices?.length"
         @update:modelValue="(device) => chooseVideoDevice(device)"
         :modelValue="settings.activeVideoDevice"
+        :disabled="isCallPaused"
         size="s"
         :label="t('videoInput')"
         :options="settings.videoDevices.map((device) => ({label: device.name || 'default', value: device.id || device.group}))"
@@ -41,6 +43,7 @@
       Select.audio-select(
         @update:modelValue="(device) => chooseAudioDevice(device)"
         :modelValue="settings.activeAudioDevice"
+        :disabled="isCallPaused"
         size="s"
         :label="t('audioInput')"
         :options="settings.audioDevices.map((device) => ({label: device.name || 'default', value: device.id || device.group}))"
@@ -83,11 +86,11 @@
           :icon="{name: 'ic20-volume-max', color: '--sui-gray-700'}"
           @click="changeVolume({ callVolume: 1 })"
         )
-    Button.button-apply(@click="applySettings") {{ t('button') }}
+    Button.button-apply(@click="openCallState(activeCallId || selectCallId)") {{ t('button') }}
 </template>
 
 <script lang="ts">
-  import { defineComponent, ref } from 'vue';
+  import { computed, defineComponent } from 'vue';
   import { Button, Icon, Select, Typography } from '@voximplant/spaceui';
   import { useI18n } from 'vue-i18n';
   import Range from '@/components/range/Range.vue';
@@ -101,8 +104,16 @@
     setRingtoneParam,
   } from '@/store/settings/index';
   import { changeComponent } from '@/store/components/index';
-  import { setAudioParam } from '@/lib/sdkSource';
-  import { changeAudioDevice, changeVideoDevice } from '@/store/calls';
+  import {
+    $calls,
+    $currentActiveCallId,
+    $currentSelectCallId,
+    changeAudioDevice,
+    changeVideoDevice,
+    currentSelectCall,
+    openCallState,
+  } from '@/store/calls';
+  import appConfig from '@/config';
 
   interface ActiveDevice {
     label: string;
@@ -115,42 +126,40 @@
     setup() {
       const { t } = useI18n();
       const settings = useStore($settings);
-      const activeAudioDevice = ref<ActiveDevice | null>(null);
-      const activeVideoDevice = ref<ActiveDevice | null>(null);
+      const activeCallId = useStore($currentActiveCallId);
+      const selectCallId = useStore($currentSelectCallId);
+      const allCalls = useStore($calls);
+      const selectCall = useStore(currentSelectCall);
+      const isCallPaused = computed(() => {
+        if (!selectCall.value) return false;
+        return (
+          !selectCall.value?.active || allCalls.value[selectCallId.value]?.params.remotePausedState
+        );
+      });
+
       const chooseAudioDevice = (device: ActiveDevice) => {
-        activeAudioDevice.value = device;
-        setActiveAudioDevice(device.label, device.value);
+        addActiveAudioDevice({ label: device.label, value: device.value });
+        if (!settings.value.mute) changeAudioDevice(device.value);
       };
       const chooseVideoDevice = (device: ActiveDevice) => {
-        activeVideoDevice.value = device;
-        setActiveVideoDevice(device.label, device.value);
-      };
-      const setActiveAudioDevice = (name: string, id: string) => {
-        addActiveAudioDevice({ label: name, value: id });
-      };
-      const setActiveVideoDevice = (name: string, id: string) => {
-        addActiveVideoDevice({ label: name, value: id });
-      };
-      const applySettings = () => {
-        changeComponent('Dialing');
-        setAudioParam();
-        setRingtoneParam();
-        if (activeAudioDevice.value) changeAudioDevice(activeAudioDevice.value.value);
-        if (activeVideoDevice.value) changeVideoDevice(activeVideoDevice.value.value);
+        addActiveVideoDevice({ label: device.label, value: device.value });
+        if (!settings.value.videoMute) changeVideoDevice(device.value);
       };
 
       return {
         t,
+        appConfig,
         settings,
         changeVolume,
         addActiveAudioDevice,
         changeComponent,
-        setAudioParam,
         setRingtoneParam,
         chooseAudioDevice,
         chooseVideoDevice,
-        setActiveAudioDevice,
-        applySettings,
+        activeCallId,
+        selectCallId,
+        isCallPaused,
+        openCallState,
       };
     },
   });
