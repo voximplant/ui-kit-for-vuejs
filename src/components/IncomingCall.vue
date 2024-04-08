@@ -24,10 +24,10 @@
   CallInfo(
     v-if="!settingsState.minimize"
     :incomingCall="true"
-    :callData="incomingCall[0]"
+    :callData="currentIncomingCall"
   )
-  Hint.hint-number(:text="incomingCall.length > 26 ? incomingCall[0].number : ''")
-    Typography.title-number(v-if="settingsState.minimize" fontColor="--sui-green-900") {{ incomingCall[0].number }}
+  Hint.hint-number(:text="incomingCallsStore.length > 26 ? currentIncomingCall.number : ''")
+    Typography.title-number(v-if="settingsState.minimize" fontColor="--sui-green-900") {{ currentIncomingCall.number }}
   .button-wrap(:class="buttonWrapClasses")
     Loading(v-if="settingsState.minimize")
     Hint.hint-button(:text="t('hints.decline')")
@@ -35,9 +35,9 @@
         mode="alert"
         iconOnly
         :icon="{name: 'ic20-close', color: '--sui-white'}"
-        @click="hangUp({ id: incomingCall[0].id })"
+        @click="hangUp({ id: currentIncomingCall.id })"
       )
-    Hint.hint-button(v-if="!appConfig.AUDIO_ONLY" :text="t('hints.answerVideo')")
+    Hint.hint-button(v-if="currentIncomingCall.video" :text="t('hints.answerVideo')")
       Button.button.take-call(
         mode="primary"
         iconOnly
@@ -57,7 +57,7 @@
   import { computed, defineComponent } from 'vue';
   import { Button, Hint, Icon, Typography } from '@voximplant/spaceui';
   import CallInfo from '@/components/calls/CallInfo.vue';
-  import { $settings } from '@/store/settings/index';
+  import { $settings, changeVideoMute } from '@/store/settings/index';
   import { useStore } from 'effector-vue/composition';
   import { useI18n } from 'vue-i18n';
   import Loading from '@/components/animation/Loading.vue';
@@ -72,6 +72,7 @@
   } from '@/store/calls';
   import { changeVideoParam } from '@/lib/sdkSource';
   import appConfig from '@/config';
+  import { debounce } from '@/helper/debounce';
 
   export default defineComponent({
     name: 'IncomingCall',
@@ -80,15 +81,16 @@
       const { t } = useI18n();
       const settingsState = useStore($settings);
       const duration = useStore($callDuration);
-      const incomingCall = useStore(incomingCalls);
+      const incomingCallsStore = useStore(incomingCalls);
       const currentActiveCallId = useStore($currentActiveCallId);
+      const currentIncomingCall = computed(() => incomingCallsStore.value[0]);
 
       const buttonWrapClasses = computed(() => ({
-        video: !appConfig.AUDIO_ONLY,
-        audio: appConfig.AUDIO_ONLY,
+        video: currentIncomingCall.value.video,
+        audio: !currentIncomingCall.value.video,
       }));
 
-      const answerCall = (isVideo: boolean) => {
+      const answerCall = debounce((isVideo: boolean) => {
         if (currentActiveCallId.value) {
           setCurrentCallAsPaused({})
             .then(() => answer(isVideo))
@@ -96,19 +98,21 @@
         } else {
           answer(isVideo);
         }
-      };
+      }, 600);
 
       const answer = (isVideo: boolean) => {
-        if (incomingCall.value[0]) {
-          toggleLocalVideo({ id: incomingCall.value[0].id, status: isVideo });
-          changeVideoParam(isVideo);
+        if (currentIncomingCall.value) {
+          toggleLocalVideo({ id: currentIncomingCall.value.id, status: isVideo });
+          if (settingsState.value.videoMute !== isVideo) changeVideoParam(isVideo);
+          else changeVideoMute(!isVideo);
         }
-        answerIncomingCall({ id: incomingCall.value[0].id, isVideo });
+        answerIncomingCall({ id: currentIncomingCall.value.id, isVideo });
       };
 
       return {
         t,
-        incomingCall,
+        incomingCallsStore,
+        currentIncomingCall,
         hangUp,
         settingsState,
         answerIncomingCall,

@@ -115,7 +115,6 @@
   import { useI18n } from 'vue-i18n';
   import { timeFormat } from '@/lib/Helpers';
   import { $settings } from '@/store/settings';
-  import appConfig from '@/config';
 
   export default defineComponent({
     name: 'CallEnded',
@@ -131,6 +130,7 @@
       const callDuration = useStore($callDuration);
       const settingsState = useStore($settings);
       const currentActiveCallId = useStore($currentActiveCallId);
+      const lastCallNumber = useStore($lastCallNumber);
       const closeSelectCall = () => {
         setSelectCall(currentActiveCallId.value || ''); // open active call or open dialing view
       };
@@ -141,8 +141,8 @@
       );
       const redialCall = () => {
         createCall({
-          number: $lastCallNumber.getState(),
-          video: !appConfig.AUDIO_ONLY,
+          number: lastCallNumber.value.number,
+          video: lastCallNumber.value.isVideo,
         });
       };
       const errorText = computed(() => {

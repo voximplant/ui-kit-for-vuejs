@@ -85,6 +85,7 @@ export interface SignInFields {
   node: string;
   queueType: QueueType;
   remember: boolean;
+  serverIp: string;
 }
 
 export interface SignInErrors {
@@ -105,6 +106,7 @@ export interface ActiveCall {
   number: string;
   active: boolean;
   status: string;
+  video: boolean;
   direction: string;
 }
 

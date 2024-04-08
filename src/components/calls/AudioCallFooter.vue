@@ -72,7 +72,7 @@
       mode="outlined"
       size="l"
       :disabled="!canCurrentCallToggleActive || isCallProgressing"
-      :icon="selectCall.active ? 'ic24-pause' : 'ic24-play'"
+      :icon="selectCall?.active ? 'ic24-pause' : 'ic24-play'"
       @click="canCurrentCallToggleActive && toggleCallStatus()"
     )
   .call-buttons
@@ -80,7 +80,7 @@
       mode="alert"
       :iconOnly="settingsState.minimize"
       :icon="{name: 'ic20-phone-missed', color: '--sui-white'}"
-       @click="() => hangUp({ id: selectCall.id })"
+       @click="() => hangUp({ id: selectCall?.id })"
     ) {{ settingsState.minimize ? '' : t('buttons.end') }}
     Button.call-button(
       v-if="showAdditionalButton"
@@ -149,7 +149,7 @@
       );
       const canCurrentCallToggleActive = computed(() => {
         if (!selectCall.value) return false;
-        return calls.value[selectCall.value.id].params.canToggleActive;
+        return calls.value[selectCall.value?.id]?.params.canToggleActive;
       });
       const getIconColor = (disabled: boolean) => {
         if (disabled) return '--sui-gray-400';

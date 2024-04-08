@@ -38,12 +38,14 @@ import {
   $currentSelectCallId,
   changeCanToggle,
   toggleRemotePausedState,
+  $lastCallNumber,
+  setLastCallNumber,
 } from '@/store/calls/index';
 import { sample } from 'effector';
 import { changeAudio, changeVideo } from '@/lib/sdkDevices';
 import { $settings, resetCallDestination, toggleSharingVideo } from '@/store/settings';
 import { EventHandlers } from 'voximplant-websdk/EventHandlers';
-import { CALL_COMPONENT_NAME } from '@/hooks/callComponentName';
+import { CALL_COMPONENT_NAME, useCallComponentName } from '@/hooks/callComponentName';
 
 // call handling events
 $calls.on(createCall, (store, { number, video }) => {
@@ -258,9 +260,16 @@ $callDuration.on(setCallDuration, (store) => {
   }, {});
 });
 
+$lastCallNumber.on(setLastCallNumber, (store, payload) => payload);
+
 currentSelectCall.on(setFailedStatus, (store, payload) => {
   if (!store) return;
   return { ...store, status: payload };
+});
+
+sample({
+  clock: setSelectCall,
+  fn: () => useCallComponentName(), // call hook for calculate call type to display correct UI component
 });
 
 sample({

@@ -2294,7 +2294,7 @@ __metadata:
     pug: 3.0.2
     pug-plain-loader: 1.1.0
     typescript: 4.1.5
-    voximplant-websdk: beta
+    voximplant-websdk: 4.7.2-2685
     vue: 3.2.22
     vue-draggable-next: 2.1.0
     vue-i18n: 9.1.7
@@ -14897,10 +14897,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"voximplant-websdk@npm:beta":
-  version: 4.6.2-2468
-  resolution: "voximplant-websdk@npm:4.6.2-2468"
-  checksum: 6315a4fa6167c6c3525ff8bda5fa7ea8983464bd637462cc90370ab74d871c3fa6a3af6047eb0ca3a65f9944eaae2228f8fdd9996843dddf80c606ded0314346
+"voximplant-websdk@npm:4.7.2-2685":
+  version: 4.7.2-2685
+  resolution: "voximplant-websdk@npm:4.7.2-2685"
+  checksum: 4fa0cff870f504d489eed57efd4c209ec659a88e080727297e1ca83a34dfc9b1ae1e6b667f1a2371617f21319cd9acd2827c9b9236cd7ec7bd28877a974eb6ce
   languageName: node
   linkType: hard
 

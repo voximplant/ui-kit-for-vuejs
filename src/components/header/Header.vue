@@ -177,8 +177,17 @@
 </template>
 
 <script lang="ts">
-import {computed, defineComponent, onBeforeUnmount, onMounted, ref, watch} from 'vue';
-import {Badge, Button, generateCheckClickOutside, Hint, Icon, IconProp, Select, Typography} from '@voximplant/spaceui';
+  import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+  import {
+    Badge,
+    Button,
+    generateCheckClickOutside,
+    Hint,
+    Icon,
+    IconProp,
+    Select,
+    Typography,
+  } from '@voximplant/spaceui';
   import { useI18n } from 'vue-i18n';
   import { $signInFields, logoutFx } from '@/store/signIn/index';
   import { useStore } from 'effector-vue/composition';
