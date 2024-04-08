@@ -66,6 +66,7 @@ const activeCalls = $calls.map<ActiveCall[]>((store) => {
   const activeCalls = Object.entries(store).reduce((acc, [key, item]) => {
     const active = item.call.active();
     const state = (item.call.state() as unknown) as string;
+    console.warn('state', state);
     const incoming = item.call.settings?.incoming;
     if (state === 'ALERTING' && incoming) {
       return acc;
@@ -75,7 +76,7 @@ const activeCalls = $calls.map<ActiveCall[]>((store) => {
         {
           id: key,
           number: incoming ? item.call.settings.displayName : item.call.number(),
-          status: active && state === 'CONNECTED' ? 'paused' : state,
+          status: active && state === 'Connected' ? 'paused' : state,
           video: item.params.video,
           active: active,
           direction: incoming ? 'incoming' : 'outbound',
