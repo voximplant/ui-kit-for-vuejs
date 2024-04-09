@@ -217,8 +217,22 @@
         return (isLoadingLoginBtn.value = !isLoadingLoginBtn.value);
       };
 
+      // workaround for media server team
+      // TODO: remove after adding serverIp field
+      const retrieveServerIpFromQuery = () => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const serverIp = queryParams.get('serverIp');
+        if (serverIp) {
+          fillForm({
+            field: 'serverIp',
+            value: serverIp,
+          });
+        }
+      };
+
       onMounted(() => {
         restoreFillForm();
+        retrieveServerIpFromQuery();
       });
 
       const loginClick = () => {

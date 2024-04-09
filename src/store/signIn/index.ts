@@ -25,6 +25,7 @@ const $signInFields = createStore<SignInFields>({
   node: '',
   queueType: QueueType.None,
   remember: false,
+  serverIp: '',
 });
 const $signInErrors = createStore<SignInErrors>({
   userName: '',

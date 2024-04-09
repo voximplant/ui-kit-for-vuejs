@@ -54,10 +54,10 @@ div(:class="callClasses")
         Hint(
           :text="selectCall?.status !== 'PROGRESSING' && selectCall?.status !== 'CONNECTED' && settingsState.minimize ? errorText : ''"
         )
-          Typography.phone-number {{ selectCall.number }}
+          Typography.phone-number {{ selectCall?.number }}
       .status
-        Typography.call-time(v-if="!settingsState.minimize") {{ selectCall?.status === 'CONNECTED' && !selectCall.active ? `${t('statuses.pause')}&nbsp; · &nbsp;` : ''}}
-        Typography.call-time(v-if="callDuration[selectCall?.id] && selectCall?.status === 'CONNECTED'") {{ selectCall.active ? timeFormat(callDuration[selectCall?.id].callDuration) : timeFormat(callDuration[selectCall?.id].pauseDuration) }}
+        Typography.call-time(v-if="!settingsState.minimize") {{ selectCall?.status === 'CONNECTED' && !selectCall?.active ? `${t('statuses.pause')}&nbsp; · &nbsp;` : ''}}
+        Typography.call-time(v-if="callDuration[selectCall?.id] && selectCall?.status === 'CONNECTED'") {{ selectCall?.active ? timeFormat(callDuration[selectCall?.id].callDuration) : timeFormat(callDuration[selectCall?.id].pauseDuration) }}
         Loading.animation(v-if="selectCall?.status === 'PROGRESSING'")
     AudioCallFooter
 </template>

@@ -17,7 +17,7 @@ const removeCall = createEvent<string>();
 const hangUp = createEvent<{ id: string }>();
 const setActiveCall = createEvent<string>();
 const setSelectCall = createEvent<string>();
-const setLastCallNumber = createEvent<string>();
+const setLastCallNumber = createEvent<{ number: string; isVideo: boolean }>();
 const setCurrentCallAsPaused = createEffect();
 const toggleCallActive = createEffect<{ id: string }, EventHandlers.Updated>();
 const changeCanToggle = createEvent<{ status: boolean; id: string }>();
@@ -51,7 +51,10 @@ const $calls = createStore<
 >({});
 const $callDuration = createStore<DurationStore>({});
 
-const $lastCallNumber = restore(setLastCallNumber, '');
+const $lastCallNumber = createStore<{ number: string; isVideo: boolean }>({
+  number: '',
+  isVideo: false,
+});
 const $lastTransferredCallNumbers = restore(changeLastTransferredCallNumbers, {
   number1: '',
   number2: '',
@@ -62,7 +65,7 @@ const $currentSelectCallId = restore(setSelectCall, ''); // select call in UI
 const activeCalls = $calls.map<ActiveCall[]>((store) => {
   const activeCalls = Object.entries(store).reduce((acc, [key, item]) => {
     const active = item.call.active();
-    const state = item.call.state();
+    const state = (item.call.state() as unknown) as string;
     const incoming = item.call.settings?.incoming;
     if (state === 'ALERTING' && incoming) {
       return acc;
@@ -73,6 +76,7 @@ const activeCalls = $calls.map<ActiveCall[]>((store) => {
           id: key,
           number: incoming ? item.call.settings.displayName : item.call.number(),
           status: active && state === 'Connected' ? 'paused' : state,
+          video: item.params.video,
           active: active,
           direction: incoming ? 'incoming' : 'outbound',
         },
@@ -84,19 +88,21 @@ const activeCalls = $calls.map<ActiveCall[]>((store) => {
 
 const incomingCalls = $calls.map((store) => {
   return Object.entries(store).reduce((acc, curr) => {
-    if (curr[1].call.state() === 'ALERTING' && curr[1].call.settings.incoming) {
+    const state = (curr[1].call.state() as unknown) as string;
+    if (state === 'ALERTING' && curr[1].call.settings.incoming) {
       toggleBannedStatus(false);
       return [
         ...acc,
         {
           id: curr[0],
           number: curr[1].call.settings.displayName,
+          video: curr[1].params.video,
         },
       ];
     } else {
       return acc;
     }
-  }, [] as { id: string; number: string }[]);
+  }, [] as { id: string; number: string; video: boolean }[]);
 });
 
 const currentActiveCall = combine($calls, $currentActiveCallId, (calls, id) => {

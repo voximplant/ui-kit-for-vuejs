@@ -36,7 +36,7 @@ $dialingComponentStatus.on(actionOnBtn, (store, type) => {
       number:
         $phoneInput.getState().inputValue && (type === 'primary' || type === 'video')
           ? $phoneInput.getState().inputValue
-          : $lastCallNumber.getState(),
+          : $lastCallNumber.getState().number,
       video: video,
     });
   }

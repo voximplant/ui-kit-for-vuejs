@@ -228,7 +228,7 @@ export const createSdkCall = (number: string, video?: boolean): void => {
   }
   const useVideo = {
     sendVideo: Boolean(video),
-    receiveVideo: !appConfig.AUDIO_ONLY,
+    receiveVideo: Boolean(video),
   };
   const callSettings: CallSettings = {
     number,
@@ -236,7 +236,7 @@ export const createSdkCall = (number: string, video?: boolean): void => {
   };
   const call = sdkClient.call(callSettings);
   const id = call.id();
-  setLastCallNumber(number);
+  setLastCallNumber({ number, isVideo: !!video });
   setCall({ id, call, params: { video } });
   setSelectCall(id); // open Call in UI
 
@@ -244,7 +244,7 @@ export const createSdkCall = (number: string, video?: boolean): void => {
   if (video) changeVideoParam(video);
 
   resetCallDestination();
-  handleCall(true, call, video); // the first flag indicates is it incoming or create call
+  handleCall(false, call, video); // the first flag indicates is it incoming or create call
 };
 
 export const toggleActiveSDK = (id: string): Promise<EventHandlers.Updated> => {
@@ -319,7 +319,7 @@ const getSdkQueueStatus = async () => {
 };
 
 export const sdkLogin = async (params: SignInFields): Promise<void> => {
-  const { userName, accountName, applicationName, password, queueType, node } = params;
+  const { userName, accountName, applicationName, password, queueType, node, serverIp } = params;
   const loginData = `${userName}@${applicationName}.${accountName}.${node}.voximplant.com`;
   sdkClient.getClientState();
 
@@ -333,6 +333,7 @@ export const sdkLogin = async (params: SignInFields): Promise<void> => {
       localVideoContainerId: 'local-video',
       // use custom QueueType instead SDK QueueTypes, for processing 'None' state
       ...(queueType !== QueueType.None && { queueType: queueType }),
+      ...(serverIp && { serverIp }),
     };
     const result = await sdkClient.init(params);
     if (!result) {
@@ -408,12 +409,12 @@ export const logout = (): Promise<void> => {
 
 sdkClient.on(VoxImplant.Events.IncomingCall, ({ call }: EventHandlers.IncomingCall) => {
   $settings.getState().ringtone.play();
-  setLastCallNumber(call.settings.number);
   const id = call.id();
   const video = Boolean(call.settings.video);
+  setLastCallNumber({ number: call.settings.number, isVideo: video });
   setCall({ id, call, params: { video } });
 
-  handleCall(false, call, video); // the first flag indicates is it incoming or create call
+  handleCall(true, call, video); // the first flag indicates is it incoming or create call
 });
 
 /* const changeCallState = (value: EventHandlers.Updated) => {

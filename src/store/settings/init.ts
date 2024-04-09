@@ -275,3 +275,15 @@ sample({
     });
   },
 });
+
+const changeRingtoneVolumeGuard = guard({
+  source: changeVolume,
+  filter: ({ ringtoneVolume }) => {
+    return typeof ringtoneVolume === 'number';
+  },
+});
+
+sample({
+  clock: changeRingtoneVolumeGuard,
+  target: setRingtoneParam,
+});

@@ -59,7 +59,7 @@
         Range.volume-range(
           id="ringtone-volume"
           :volumeValue="settings.ringtoneVolume"
-          @input="(volumeValue) => changeVolume({ ringtoneVolume: volumeValue })"
+          @input="(volumeValue) => changeVolume({ ringtoneVolume: Number(volumeValue) })"
         )
         Button(
           mode="flat"
@@ -131,7 +131,7 @@
       const allCalls = useStore($calls);
       const selectCall = useStore(currentSelectCall);
       const isCallPaused = computed(() => {
-        if (!selectCall.value) return false;
+        if (!selectCall.value || selectCall.value.status === 'ENDED') return false;
         return (
           !selectCall.value?.active || allCalls.value[selectCallId.value]?.params.remotePausedState
         );
